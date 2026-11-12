@@ -6,6 +6,7 @@ import { FinishedPlan, NewPlanButton, PlanDetail } from "@/components/PlanViews"
 import WeekPlanner from "@/components/WeekPlanner";
 import TodayPlan from "@/components/TodayPlan";
 import MonthCalendar from "@/components/MonthCalendar";
+import { NavProvider, ViewBody, ViewTabs } from "@/components/RoutineNav";
 import PageHeader, { Empty } from "@/components/PageHeader";
 import { DayOff } from "@/components/RoutineEditor";
 import { requireMasterId } from "@/lib/session";
@@ -19,7 +20,6 @@ import { DAY_ORDER, bnDigits, fullDateBn, humanTime, nowBD, nowHHMM, todayBD } f
 export const dynamic = "force-dynamic";
 
 type View = "today" | "week" | "plans" | "month";
-const TABS = [["today", "/routine", Sun, "আজ"], ["week", "/routine?view=week", Columns3, "সপ্তাহ"], ["plans", "/routine?view=plans", BookOpen, "পরিকল্পনা"]] as const;
 
 export default async function RoutinePage({ searchParams }: { searchParams: Promise<{ view?: string; m?: string; d?: string; day?: string }> }) {
   const mid = await requireMasterId();
@@ -35,19 +35,13 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
   const action = view === "plans" ? <NewPlanButton today={today} className="btn-primary shrink-0 py-2.5" /> : undefined;
 
   return (
+    <NavProvider>
     <div className="space-y-6">
       <PageHeader title="রুটিন" Icon={view === "plans" || view === "month" ? BookOpen : view === "week" ? Columns3 : Sun} action={action} />
 
-      <nav className="seg max-w-md -mt-3" aria-label="রুটিনের ভাগ">
-        {TABS.map(([key, href, Icon, label]) => (
-          <Link key={key} href={href} aria-current={tab === key ? "page" : undefined}
-            className="text-center rounded-[0.625rem] py-2 text-sm font-semibold inline-flex items-center justify-center gap-1.5"
-            style={tab === key ? { background: "var(--surface)", boxShadow: "var(--shadow)" } : { color: "var(--muted)" }}>
-            <Icon size={15} /> {label}
-          </Link>
-        ))}
-      </nav>
+      <ViewTabs current={tab} />
 
+      <ViewBody>
       {view === "today" && await TodayView({ mid, all: weekly, today, todayCode })}
       {view === "week" && (
         <WeekPlanner blocks={weekly.filter((b) => !b.date)} today={today} todayCode={todayCode}
@@ -55,7 +49,9 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
       )}
       {view === "plans" && await PlansView({ mid, today })}
       {view === "month" && await MonthView({ mid, today, m: sp.m, d: sp.d })}
+      </ViewBody>
     </div>
+    </NavProvider>
   );
 }
 

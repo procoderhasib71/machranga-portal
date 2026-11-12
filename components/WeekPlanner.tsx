@@ -1,6 +1,6 @@
 // সাপ্তাহিক প্ল্যানার: একবার সাজালে প্রতি সপ্তাহে নিজে চলে। ফোনে বারের ট্যাব + সেই বারের সময়রেখা, কম্পিউটারে সাত দিন পাশাপাশি।
 // প্রতিটা বারে "+" (সেই বার বাছা থাকে) আর "অন্য বারে কপি"।
-import Link from "next/link";
+import { DayBody, DayTabs } from "./RoutineNav";
 import { DAY_BN, DAY_ORDER, bnDigits } from "@/lib/bn";
 import type { RoutineBlock } from "@/lib/data";
 import { CopyDayButton, EditableBlock, NewBlockButton, TemplatePicker } from "./RoutineEditor";
@@ -32,26 +32,14 @@ export default function WeekPlanner({ blocks, today, todayCode, selected }: { bl
 
       {/* ফোন/ট্যাবলেট: বারের ট্যাব আর বাছা বারের তালিকা */}
       <div className="lg:hidden space-y-3">
-        <nav className="grid grid-cols-7 gap-1" aria-label="বার">
-          {DAY_ORDER.map((c) => {
-            const active = c === selected;
-            return (
-              <Link key={c} href={`/routine?view=week&day=${c}`} scroll={false} aria-current={active ? "page" : undefined}
-                className="rounded-xl py-2 text-center text-xs font-semibold transition-colors"
-                style={active ? { background: "var(--brand)", color: "var(--brand-ink)" } : { background: "var(--surface-2)", color: c === todayCode ? "var(--brand)" : "var(--muted)" }}>
-                {DAY_BN[c]}
-                <span className="block text-[10px] font-medium num opacity-80 mt-0.5">{count(c) ? `${bnDigits(count(c))}টা` : "—"}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <DayTabs selected={selected} todayCode={todayCode} counts={Object.fromEntries(DAY_ORDER.map((c) => [c, count(c) ? `${bnDigits(count(c))}টা` : "—"]))} />
         <section className="card card-pad rise">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h2 className="font-semibold text-lg flex items-center gap-2">
               {DAY_BN[selected]}বার {selected === todayCode && <span className="chip text-xs">আজ</span>}
             </h2>
           </div>
-          <DayList code={selected} blocks={blocks} today={today} />
+          <DayBody><DayList code={selected} blocks={blocks} today={today} /></DayBody>
           <div className="flex gap-2 mt-4">
             <NewBlockButton today={today} kind="weekly" days={[selected]} label="এই বারে যোগ" className="btn-primary flex-1 py-2.5" />
             <CopyDayButton from={selected} className="btn-outline flex-1 py-2.5" />
