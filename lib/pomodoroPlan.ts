@@ -19,7 +19,7 @@ export type TodoRow = {
   pomo_id: string | null; pomo_done: number | null;
 };
 
-export type BlockRow = { id: number; days: string; start_time: string; end_time: string | null; title: string };
+export type BlockRow = { id: number; days: string; date?: string | null; start_time: string; end_time: string | null; title: string };
 
 export type DbOp = { sql: string; args: (string | number | null)[] };
 
@@ -152,7 +152,7 @@ export function plan(input: PlanInput): Plan {
 
   // ৫. আজকের রুটিন ব্লক
   const stamp = today.replaceAll("-", "");
-  const todays = blocks.filter((b) => b.days === "daily" || b.days.split(",").includes(dayCode));
+  const todays = blocks.filter((b) => (b.date ? b.date === today : b.days === "daily" || b.days.split(",").includes(dayCode)));
   const want = new Map(todays.map((b) => [`routine-${b.id}-${stamp}`, b]));
   for (const t of [...tasks]) {
     if (!t.id.startsWith("routine-")) continue;

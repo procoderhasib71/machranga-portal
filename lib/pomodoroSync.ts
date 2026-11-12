@@ -30,7 +30,7 @@ export async function syncUser(masterId: string, uid: string): Promise<number> {
     query<TodoRow>(
       "SELECT id, task, due_date, priority, status, pomo_id, pomo_done FROM hermes_todos " +
       "WHERE master_id = ? AND (status IN ('open', 'deleted') OR pomo_id IS NOT NULL) ORDER BY id", [masterId]),
-    query<BlockRow>("SELECT id, days, start_time, end_time, title FROM hermes_routine_blocks WHERE master_id = ? ORDER BY start_time, id", [masterId]),
+    query<BlockRow>("SELECT id, days, date, start_time, end_time, title FROM hermes_routine_blocks WHERE master_id = ? ORDER BY start_time, id", [masterId]),
   ]);
   const { today, nowBd, dayCode } = bdNow();
   const ref = firestore().doc(`users/${uid}/taskData/allTasks`);

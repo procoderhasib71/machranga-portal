@@ -115,6 +115,16 @@ test("আজকের রুটিন ব্লক টাস্ক হয়; �
   assert.equal(p.ops.length, 0);   // রুটিন to-do তে আসে না
 });
 
+test("তারিখের রুটিন ব্লক শুধু সেই দিনে Pomodoro তে যায় (১০ দিনের পরিকল্পনা একদিনে আসে না)", () => {
+  const blocks = Array.from({ length: 10 }, (_, i) => ({
+    id: 20 + i, days: "once", date: `2026-11-${String(12 + i).padStart(2, "0")}`, start_time: "19:00", end_time: "22:00", title: `কার্ডিওলজি: দিন ${i + 1}`,
+  }));
+  // আগের ভুলে আজ ১০টা টাস্কই চলে গিয়েছিল: এখন শুধু দিন ১ থাকবে, বাকি ৯টা সরে যাবে
+  const before = blocks.map((b) => task({ id: `routine-${b.id}-20261112`, title: `📅 ${b.title}` }));
+  const p = plan({ ...base, todos: [], blocks, tasks: before });
+  assert.deepEqual(p.tasks.map((t) => t.title), ["📅 কার্ডিওলজি: দিন 1"]);
+});
+
 test("listFor: তারিখ অনুযায়ী Pomodoro র তালিকা", () => {
   assert.deepEqual(listFor(null, "2026-11-12"), { list: "Today", dueDate: null });
   assert.deepEqual(listFor("2026-11-10", "2026-11-12"), { list: "Today", dueDate: "Today" });

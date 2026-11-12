@@ -1,7 +1,7 @@
-import { BellOff, CalendarClock } from "lucide-react";
+import { BellOff, CalendarClock, CalendarDays, Repeat } from "lucide-react";
 import { requireMasterId } from "@/lib/session";
 import { getRoutine, type RoutineBlock } from "@/lib/data";
-import { DAY_BN, DAY_ORDER, bnDigits, humanTime, nowBD } from "@/lib/bn";
+import { DAY_BN, DAY_ORDER, bnDigits, humanDate, humanTime, nowBD, todayBD } from "@/lib/bn";
 import PageHeader, { Empty } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,10 @@ function Block({ b }: { b: RoutineBlock }) {
 
 export default async function RoutinePage() {
   const mid = await requireMasterId();
-  const blocks = await getRoutine(mid);
+  const all = await getRoutine(mid);
+  const blocks = all.filter((b) => !b.date);   // সাপ্তাহিক
+  const dated = all.filter((b) => b.date);     // নির্দিষ্ট তারিখের (আজ থেকে সামনের)
+  const today = todayBD();
   const todayCode = DAY_ORDER[(nowBD().getDay() + 1) % 7];
   const days = DAY_ORDER.map((code) => ({
     code,
@@ -29,17 +32,48 @@ export default async function RoutinePage() {
   }));
   // ফোনে আজকের দিনটা আগে
   const ordered = [...days.slice(days.findIndex((d) => d.code === todayCode)), ...days.slice(0, days.findIndex((d) => d.code === todayCode))];
+  const datedDays = [...new Set(dated.map((b) => b.date!))].map((date) => ({ date, rows: dated.filter((b) => b.date === date) }));
+
+  const subtitle = [
+    blocks.length ? `সপ্তাহে ${bnDigits(blocks.length)}টা ব্লক` : "",
+    datedDays.length ? `সামনের ${bnDigits(datedDays.length)} দিনের পরিকল্পনা` : "",
+  ].filter(Boolean).join(" · ");
 
   return (
-    <div>
-      <PageHeader title="রুটিন" subtitle={blocks.length ? `সপ্তাহে ${bnDigits(blocks.length)}টা ব্লক · শুরুর সময়ে বট মনে করিয়ে দেয়` : undefined} Icon={CalendarClock} />
-      {blocks.length === 0 ? (
+    <div className="space-y-8">
+      <PageHeader title="রুটিন" subtitle={subtitle ? `${subtitle} · শুরুর সময়ে বট মনে করিয়ে দেয়` : undefined} Icon={CalendarClock} />
+
+      {datedDays.length > 0 && (
+        <section>
+          <h2 className="font-semibold mb-3 flex items-center gap-2"><CalendarDays size={18} style={{ color: "var(--brand)" }} /> তারিখ অনুযায়ী পরিকল্পনা</h2>
+          <ol className="space-y-3">
+            {datedDays.map((d, i) => {
+              const isToday = d.date === today;
+              return (
+                <li key={d.date} className="card p-4 flex gap-4 items-start rise"
+                  style={{ animationDelay: `${Math.min(i, 10) * 30}ms`, ...(isToday ? { borderColor: "var(--brand)", boxShadow: "0 0 0 1px var(--brand)" } : {}) }}>
+                  <div className="w-16 shrink-0 text-center rounded-xl py-2" style={{ background: isToday ? "var(--brand)" : "var(--surface-2)", color: isToday ? "var(--brand-ink)" : "var(--ink)" }}>
+                    <p className="text-[11px] font-medium opacity-80">{isToday ? "আজ" : humanDate(d.date).includes(" ") ? humanDate(d.date).split(" ")[1] : humanDate(d.date)}</p>
+                    <p className="text-xl font-bold num leading-tight">{bnDigits(Number(d.date.slice(8)))}</p>
+                  </div>
+                  <ul className="flex-1 min-w-0 space-y-2">{d.rows.map((b) => <Block key={b.id} b={b} />)}</ul>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
+
+      {blocks.length === 0 && datedDays.length === 0 ? (
         <div className="card card-pad max-w-xl">
           <Empty text="এখনো কোনো রুটিন নেই। বটকে বলো — তোমার সাথে কথা বলে সাজিয়ে দেবে, আর প্রতিটা ব্লক শুরুর সময়ে মনে করিয়ে দেবে:"
             example="আমার একটা পড়ার রুটিন বানিয়ে দাও, রাতে ৩ ঘণ্টা সময় পাই" />
         </div>
+      ) : blocks.length === 0 ? (
+        <p className="text-sm muted">রুটিন বদলাতে বটকে সাধারণ কথায় বলো — &ldquo;দিন ৩ এর ব্লকটা বাদ দাও&rdquo;, &ldquo;নতুন করে বানাও&rdquo;।</p>
       ) : (
-        <>
+        <section>
+          {datedDays.length > 0 && <h2 className="font-semibold mb-3 flex items-center gap-2"><Repeat size={18} style={{ color: "var(--brand)" }} /> প্রতি সপ্তাহের রুটিন</h2>}
           {/* কম্পিউটার: সাত দিনের বোর্ড */}
           <div className="hidden lg:grid grid-cols-7 gap-3">
             {days.map((d, i) => {
@@ -68,7 +102,7 @@ export default async function RoutinePage() {
             ))}
           </div>
           <p className="text-sm muted mt-5">রুটিন বদলাতে বটকে সাধারণ কথায় বলো — &ldquo;শনিবারের ব্লকটা বাদ দাও&rdquo;, &ldquo;নতুন করে বানাও&rdquo;।</p>
-        </>
+        </section>
       )}
     </div>
   );

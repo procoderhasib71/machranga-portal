@@ -26,11 +26,12 @@ export async function getTodos(mid: string): Promise<{ open: Todo[]; done: Todo[
   return { open, done };
 }
 
-export type RoutineBlock = { id: number; days: string; start_time: string; end_time: string | null; title: string; note: string | null; remind: number };
+export type RoutineBlock = { id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string; note: string | null; remind: number };
 
 export async function getRoutine(mid: string): Promise<RoutineBlock[]> {
   return query<RoutineBlock>(
-    "SELECT id, days, start_time, end_time, title, note, remind FROM hermes_routine_blocks WHERE master_id = ? ORDER BY start_time, id", [mid]);
+    "SELECT id, days, date, start_time, end_time, title, note, remind FROM hermes_routine_blocks " +
+    "WHERE master_id = ? AND (date IS NULL OR date >= ?) ORDER BY COALESCE(date, ''), start_time, id", [mid, todayBD()]);
 }
 
 export type Reminder = { id: number; task: string; trigger_time: string; repeat_rule: string | null };
@@ -84,8 +85,8 @@ export async function getSubscription(mid: string): Promise<Subscription | null>
 }
 
 /** ড্যাশবোর্ডের জন্য: আজ কোন রুটিন ব্লকগুলো আছে */
-export function todaysBlocks(blocks: RoutineBlock[], dayCode: string): RoutineBlock[] {
-  return blocks.filter((b) => b.days === "daily" || b.days.split(",").includes(dayCode));
+export function todaysBlocks(blocks: RoutineBlock[], dayCode: string, today: string = todayBD()): RoutineBlock[] {
+  return blocks.filter((b) => (b.date ? b.date === today : b.days === "daily" || b.days.split(",").includes(dayCode)));
 }
 
 export function isOverdue(due: string | null): boolean {
