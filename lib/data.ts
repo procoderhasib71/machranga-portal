@@ -1,6 +1,7 @@
 // সব পড়ার কোয়েরি এক জায়গায়: প্রতিটা শুধু নিজের master_id এর ডাটা ছোঁয়
 import { one, query } from "./db";
 import { todayBD } from "./bn";
+import type { PlanBlockRow, PlanRow } from "./plans";
 
 export type User = {
   master_id: string; name: string | null; city: string | null; assistant_name: string | null; call_me: string | null;
@@ -111,13 +112,15 @@ export async function getRoutineMonth(mid: string, from: string, to: string) {
 
 /** পরিকল্পনার সারাংশের জন্য: গত ৬০ দিন থেকে সামনের তারিখের ব্লক আর সেসব দিনের কাজের অবস্থা */
 export async function getPlanBlocks(mid: string) {
-  const [blocks, todos] = await Promise.all([
-    query<{ id: number; date: string; title: string }>(
-      "SELECT id, date, title FROM hermes_routine_blocks WHERE master_id = ? AND date IS NOT NULL AND date >= date('now', '-60 days')", [mid]),
+  const [plans, blocks, todos] = await Promise.all([
+    query<PlanRow>("SELECT id, name, book, exam_date, start_time, end_time FROM hermes_plans WHERE master_id = ? AND (end_date IS NULL OR end_date >= date('now', '-60 days'))", [mid]),
+    query<PlanBlockRow>(
+      "SELECT id, date, title, plan_id, days, start_time, end_time, note, remind, focus FROM hermes_routine_blocks " +
+      "WHERE master_id = ? AND date IS NOT NULL AND date >= date('now', '-60 days')", [mid]),
     query<{ routine_id: number; routine_date: string; status: string }>(
       "SELECT routine_id, routine_date, status FROM hermes_todos WHERE master_id = ? AND routine_id IS NOT NULL AND routine_date >= date('now', '-60 days')", [mid]),
   ]);
-  return { blocks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])) };
+  return { plans, blocks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])) };
 }
 
 /** "আজ ছুটি": এই দিনগুলোতে সাপ্তাহিক রুটিন চলে না */

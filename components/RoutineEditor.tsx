@@ -4,6 +4,7 @@ import { BellOff, CalendarDays, Copy, LayoutTemplate, Pencil, Plus, Repeat, Tras
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { DAY_BN, DAY_ORDER, bnDigits, daysBn, humanTime } from "@/lib/bn";
 import type { RoutineBlock } from "@/lib/data";
 import type { PlanDayStatus, PlanSummary } from "@/lib/plans";
@@ -11,7 +12,7 @@ import { TEMPLATES, type Template } from "@/lib/templates";
 import Switch from "./Switch";
 import { autoFocus, isFocus } from "@/lib/focus";
 
-async function call(payload: Record<string, unknown>) {
+export async function call(payload: Record<string, unknown>) {
   const r = await fetch("/api/routine", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error ?? "হলো না, আবার চেষ্টা করো");
 }
@@ -70,7 +71,7 @@ function initial(b: RoutineBlock | undefined, today: string, kind: "date" | "wee
   };
 }
 
-function BlockForm({ block, today, kind = "date", days, onClose, onDelete }: {
+export function BlockForm({ block, today, kind = "date", days, onClose, onDelete }: {
   block?: RoutineBlock; today: string; kind?: "date" | "weekly"; days?: string[]; onClose: () => void; onDelete?: () => void;
 }) {
   const [f, setF] = useState(() => initial(block, today, kind, days));
@@ -281,7 +282,7 @@ function rangeBn(from: string, to: string): string {
 export function PlanCard({ plan, today }: { plan: PlanSummary; today: string }) {
   const [confirm, setConfirm] = useState(false);
   const { pending, error } = useAction(() => setConfirm(false));
-  const { gone, remove } = useInstantRemove({ action: "delete_plan", plan: plan.name });
+  const { gone, remove } = useInstantRemove(plan.id ? { action: "delete_plan", plan_id: plan.id } : { action: "delete_plan", plan: plan.name });
   const total = plan.days.length;
   const tomorrow = new Date(Date.parse(`${today}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
   const next = !plan.next ? "সব দিন পেরিয়েছে" : plan.next === today ? "আজ পড়ার দিন" : plan.next === tomorrow ? "পরেরটা কাল" : `পরেরটা ${bnDigits(dm(plan.next).d)} ${MONTHS_SHORT[dm(plan.next).m]}`;
@@ -324,6 +325,7 @@ export function PlanCard({ plan, today }: { plan: PlanSummary; today: string }) 
           <div className="h-full rounded-full" style={{ width: `${Math.round((plan.done / total) * 100)}%`, background: "var(--ok)" }} />
         </div>
         <span className="text-xs muted num shrink-0">{bnDigits(plan.done)}/{bnDigits(total)} দিন শেষ · {next}</span>
+        <Link href="/routine?view=plans" className="link text-xs shrink-0">বিস্তারিত →</Link>
       </div>
       {error && <p className="text-xs mt-2" style={{ color: "var(--danger)" }}>{error}</p>}
     </li>

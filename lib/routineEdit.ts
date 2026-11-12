@@ -1,6 +1,6 @@
 // পোর্টাল থেকে রুটিনের ব্লক যোগ/বদলের ইনপুট যাচাই (pure)। বটের tools/routine.py এর নিয়মের মতোই।
 export const DAY_CODES = ["SAT", "SUN", "MON", "TUE", "WED", "THU", "FRI"];
-export const MAX_BLOCKS = 60;
+export const MAX_BLOCKS = 200;   // এক মাসের পরিকল্পনাতেই ৩০টা দিন
 
 export type BlockInput = {
   title?: unknown; kind?: unknown; date?: unknown; days?: unknown;

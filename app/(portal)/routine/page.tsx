@@ -1,4 +1,5 @@
-import { CalendarClock, CalendarDays, CalendarRange, Columns3, List, Repeat, Sun } from "lucide-react";
+import { BookOpen, CalendarClock, CalendarDays, CalendarRange, Columns3, List, Repeat, Sun } from "lucide-react";
+import { FinishedPlan, NewPlanButton, PlanDetail } from "@/components/PlanViews";
 import WeekPlanner from "@/components/WeekPlanner";
 import Link from "next/link";
 import { requireMasterId } from "@/lib/session";
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function RoutinePage({ searchParams }: { searchParams: Promise<{ view?: string; m?: string; d?: string; day?: string }> }) {
   const mid = await requireMasterId();
   const sp = await searchParams;
-  const view = sp.view === "month" ? "month" : sp.view === "week" ? "week" : "list";
+  const view = sp.view === "month" ? "month" : sp.view === "week" ? "week" : sp.view === "plans" ? "plans" : "list";
   const month = view === "month" ? validMonth(sp.m, todayBD().slice(0, 7)) : null;
   await syncForRequest(mid);   // রুটিন → কাজ এখনই, Pomodoro উত্তর পাঠানোর পরে
   const [all, todos, planData, offToday] = await Promise.all([getRoutine(mid), getTodos(mid), getPlanBlocks(mid), getDaysOff(mid, todayBD(), todayBD())]);
@@ -38,7 +39,8 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
   const later = laterTasks(todos.open, today);
   const datedDays = [...new Set([...dated.map((b) => b.date!).filter((d) => d > today), ...later.keys()])].sort()
     .map((date) => ({ date, rows: dated.filter((b) => b.date === date), tasks: later.get(date) ?? [] }));
-  const plans = buildPlans(planData.blocks, planData.statuses, today);
+  const allPlans = buildPlans(planData.plans, planData.blocks, planData.statuses, today);
+  const plans = allPlans.filter((p) => !p.finished);
 
   const subtitle = [
     blocks.length ? `সপ্তাহে ${bnDigits(blocks.length)}টা ব্লক` : "",
@@ -50,18 +52,40 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
       <PageHeader title="রুটিন" subtitle={subtitle ? `${subtitle} · ব্লক চাপলে বদলানো বা মোছা যায়` : undefined} Icon={CalendarClock}
         action={<NewBlockButton today={today} className="btn-primary shrink-0 py-2.5" />} />
 
-      <nav className="seg max-w-sm -mt-4" aria-label="দেখার ধরন">
-        {([["list", "/routine", List, "তালিকা"], ["week", "/routine?view=week", Columns3, "সপ্তাহ"], ["month", "/routine?view=month", CalendarRange, "মাস"]] as const).map(([key, href, Icon, label]) => {
+      <nav className="seg max-w-lg -mt-4" aria-label="দেখার ধরন">
+        {([["list", "/routine", List, "তালিকা"], ["plans", "/routine?view=plans", BookOpen, "পরিকল্পনা"], ["week", "/routine?view=week", Columns3, "সপ্তাহ"], ["month", "/routine?view=month", CalendarRange, "মাস"]] as const).map(([key, href, Icon, label]) => {
           const active = view === key;
           return (
             <Link key={key} href={href} aria-current={active ? "page" : undefined}
-              className="text-center rounded-[0.625rem] py-2 text-sm font-semibold inline-flex items-center justify-center gap-1.5"
-              style={active ? { background: "var(--surface)", boxShadow: "var(--shadow)" } : { color: "var(--muted)" }}><Icon size={15} /> {label}</Link>
+              className="text-center rounded-[0.625rem] py-2 px-1 text-[13px] sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+              style={active ? { background: "var(--surface)", boxShadow: "var(--shadow)" } : { color: "var(--muted)" }}><Icon size={15} className="hidden sm:block" /> {label}</Link>
           );
         })}
       </nav>
 
-      {view === "week" ? (
+      {view === "plans" ? (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center gap-3 -mt-2">
+            <NewPlanButton today={today} className="btn-primary py-2.5" />
+            <p className="text-sm muted flex-1 min-w-48">আগে লক্ষ্য (যেমন &ldquo;Davidson ১ মাসে&rdquo;), তারপর প্রতিদিনের পড়া নিজে রুটিনে বসে। বটকেও বলতে পারো।</p>
+          </div>
+          {allPlans.filter((p) => !p.finished).length === 0 ? (
+            <div className="card card-pad max-w-xl">
+              <Empty text="এখনো কোনো পরিকল্পনা নেই। উপরের বোতাম চাপো, অথবা বটকে বলো:" example="Davidson মেডিসিন ১ মাসে শেষ করার পরিকল্পনা বানাও, রাত ৯টা থেকে ১২টা পড়ব" />
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+              {allPlans.filter((p) => !p.finished).map((p) => <PlanDetail key={p.key} plan={p} today={today} />)}
+            </ul>
+          )}
+          {allPlans.some((p) => p.finished) && (
+            <section>
+              <h2 className="font-semibold mb-2">শেষ হওয়া পরিকল্পনা</h2>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">{allPlans.filter((p) => p.finished).map((p) => <FinishedPlan key={p.key} plan={p} />)}</ul>
+            </section>
+          )}
+        </div>
+      ) : view === "week" ? (
         <WeekPlanner blocks={blocks} today={today} todayCode={todayCode}
           selected={DAY_ORDER.includes(sp.day as (typeof DAY_ORDER)[number]) ? sp.day! : todayCode} />
       ) : month ? await (async () => {
@@ -86,7 +110,7 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
         <section>
           <h2 className="font-semibold mb-3 flex items-center gap-2"><CalendarDays size={18} style={{ color: "var(--brand)" }} /> সামনের দিনগুলো</h2>
           {plans.length > 0 && (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">{plans.map((p) => <PlanCard key={p.name} plan={p} today={today} />)}</ul>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">{plans.map((p) => <PlanCard key={p.key} plan={p} today={today} />)}</ul>
           )}
           <ol className="space-y-3">
             {datedDays.map((d, i) => {
