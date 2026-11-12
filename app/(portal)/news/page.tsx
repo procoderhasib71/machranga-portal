@@ -39,10 +39,9 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
           {tab("প্রধান খবর", "")}
           {topics.map((t) => tab(t, t))}
         </div>
-        <form action="/news" className="flex items-center gap-2 rounded-xl border px-3 sm:w-64 shrink-0" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
+        <form action="/news" className="shell sm:w-64 shrink-0">
           <Search size={16} className="faint shrink-0" />
-          <input name="q" defaultValue={sp.q ?? ""} placeholder="যেকোনো বিষয় খোঁজো…" aria-label="খবর খোঁজো"
-            className="flex-1 min-w-0 bg-transparent outline-none py-2.5 text-sm" />
+          <input name="q" defaultValue={sp.q ?? ""} placeholder="যেকোনো বিষয় খোঁজো…" aria-label="খবর খোঁজো" className="!py-2.5 text-sm" />
         </form>
       </div>
 

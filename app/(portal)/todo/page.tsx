@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function TodoPage() {
   const mid = await requireMasterId();
   const pomodoro = await one("SELECT 1 AS x FROM hermes_site_links WHERE master_id = ? AND site = 'pomodoro'", [mid]);
-  if (pomodoro) await syncMasterQuietly(mid);   // Pomodoro র সর্বশেষ অবস্থা আগে মিলিয়ে নিই
+  await syncMasterQuietly(mid);   // রুটিনের আজকের কাজ আর Pomodoro র সর্বশেষ অবস্থা আগে মিলিয়ে নিই
   const { open, done } = await getTodos(mid);
   return (
     <div className="max-w-3xl">

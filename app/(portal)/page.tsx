@@ -35,7 +35,8 @@ export default async function Dashboard() {
   const current = blocks.find((b) => b.start_time <= hhmm && (b.end_time ? hhmm < b.end_time : false));
   const nextBlock = blocks.find((b) => b.start_time > hhmm);
   const doneToday = todos.done.filter((t) => (t.done_at ?? "").startsWith(today)).length;
-  const total = doneToday + todos.open.length;
+  const openNow = todos.open.filter((t) => !t.routine_id || (t.due_date ?? "") <= today);   // রুটিনের সামনের দিনের কাজ বাদ
+  const total = doneToday + openNow.length;
   const pct = total ? Math.round((doneToday / total) * 100) : 0;
   const lastBp = health.filter((h) => h.metric === "bp").at(-1);
   const lastHealth = health.filter((h) => h.metric !== "symptom").at(-1);
@@ -79,11 +80,11 @@ export default async function Dashboard() {
               </div>
             </div>
           )}
-          {todos.open.length === 0 ? (
+          {openNow.length === 0 ? (
             <Empty text={doneToday ? "আজকের সব কাজ শেষ! 🎉" : "লিস্ট ফাঁকা। বটকে বলো:"} example={doneToday ? undefined : "লিস্টে রাখো: বাজার করা"} />
           ) : (
             <ul className="divide-y divide-[var(--line)]">
-              {todos.open.slice(0, 6).map((t) => (
+              {openNow.slice(0, 6).map((t) => (
                 <li key={t.id} className="flex items-center gap-3 py-2.5">
                   <span className="size-4 rounded-full border-2 shrink-0" style={{ borderColor: t.priority ? "var(--accent)" : "var(--faint)" }} />
                   <span className="flex-1 min-w-0 truncate">{t.task}</span>
@@ -93,7 +94,7 @@ export default async function Dashboard() {
               ))}
             </ul>
           )}
-          {todos.open.length > 6 && <p className="text-sm muted mt-2">…আরও {bnDigits(todos.open.length - 6)}টা</p>}
+          {openNow.length > 6 && <p className="text-sm muted mt-2">…আরও {bnDigits(openNow.length - 6)}টা</p>}
         </section>
 
         <section className="card card-pad lg:col-span-2 rise" style={{ animationDelay: "240ms" }}>

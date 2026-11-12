@@ -4,8 +4,10 @@
 // - শেষ করা: যেদিকে বদল হয়েছে সেদিক জেতে (pomo_done = শেষ sync এ Pomodoro র অবস্থা)। বারবারের (repeat) টাস্কে
 //   Pomodoro নিজে রোজ আবার খুলে দেয়, তাই ওগুলোয় সবসময় Pomodoro যা বলে তাই
 // - মোছা: to-do তে status 'deleted' হলে Pomodoro থেকে মুছে সারিটা মুছি; Pomodoro তে না থাকলে to-do ও মুছি
-// - নাম: শুধু Pomodoro তেই বদলানো যায়, তাই ওখানকার নামই ঠিক
-// - আজকের রুটিন ব্লক → Pomodoro র "আজ" এ টাস্ক (id: routine-{block id}-{YYYYMMDD}), অন্য দিনেরগুলো সরে যায়
+// - নাম: সাধারণ কাজের নাম শুধু Pomodoro তেই বদলানো যায়, তাই ওখানকার নামই ঠিক
+// - রুটিনের কাজ (lib/routineTodos.ts বানায়): ব্লকই আসল, তাই নাম আর দিন পোর্টাল → Pomodoro; মুছলে সারি মোছে না
+//   (status 'deleted' থাকে, নইলে পরের sync আবার বানাত)
+// - আগের ব্যবস্থার "routine-{block}-{YYYYMMDD}" টাস্কগুলো সরে যায় (শেষ করা থাকলে নতুন কাজটাও শেষ হয়)
 
 export type PomoTask = {
   id: string; title: string; category?: string; duration?: number; completed: boolean;
@@ -17,6 +19,7 @@ export type PomoTask = {
 export type TodoRow = {
   id: number; task: string; due_date: string | null; priority: number; status: string;
   pomo_id: string | null; pomo_done: number | null;
+  routine_id?: number | null; routine_date?: string | null;
 };
 
 export type BlockRow = { id: number; days: string; date?: string | null; start_time: string; end_time: string | null; title: string };
@@ -66,7 +69,7 @@ function newTask(id: string, title: string, nowIso: string, extra: Partial<PomoT
 const minutesOf = (hhmm: string) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
 
 export function plan(input: PlanInput): Plan {
-  const { masterId, todos, docExists, blocks, today, dayCode, nowIso, nowBd } = input;
+  const { masterId, todos, docExists, blocks, today, nowIso, nowBd } = input;
   let tasks = input.tasks.map((t) => ({ ...t }));
   let tasksChanged = false;
   let changed = 0;
@@ -74,26 +77,55 @@ export function plan(input: PlanInput): Plan {
   const byId = () => new Map(tasks.map((t) => [t.id, t]));
   const removeTask = (id: string) => { tasks = tasks.filter((t) => t.id !== id); tasksChanged = true; };
 
+  const blockById = new Map(blocks.map((b) => [b.id, b]));
+  const extra = (todo: TodoRow): Partial<PomoTask> => {
+    const b = todo.routine_id ? blockById.get(todo.routine_id) : undefined;
+    if (!b) return {};
+    const mins = b.end_time ? minutesOf(b.end_time) - minutesOf(b.start_time) : 25;
+    return { category: "রুটিন", estimatedPomodoros: Math.max(1, Math.round(Math.max(mins, 25) / 25)),
+      notes: `রুটিন: ${b.start_time}${b.end_time ? `–${b.end_time}` : ""}` };
+  };
+
+  // ০. আগের ব্যবস্থার রুটিন টাস্ক সরাই; শেষ করা থাকলে একই দিনের নতুন কাজটাও শেষ
+  const legacyDone = new Set<number>();
+  for (const t of [...tasks]) {
+    const m = /^routine-(\d+)-(\d{4})(\d{2})(\d{2})$/.exec(t.id);
+    if (!m && !t.id.startsWith("routine-")) continue;
+    removeTask(t.id); changed++;
+    if (!m || !t.completed) continue;
+    const todo = todos.find((x) => x.routine_id === Number(m[1]) && x.routine_date === `${m[2]}-${m[3]}-${m[4]}` && x.status === "open");
+    if (todo) {
+      legacyDone.add(todo.id);
+      ops.push({ sql: "UPDATE hermes_todos SET status = 'done', done_at = ? WHERE id = ? AND master_id = ?", args: [nowBd, todo.id, masterId] });
+    }
+  }
+
   const linked = new Set<string>();
   for (const todo of todos) {
     const map = byId();
+    const routine = Boolean(todo.routine_id);
     // ১. to-do তে মোছা
     if (todo.status === "deleted") {
       if (todo.pomo_id && map.has(todo.pomo_id)) { removeTask(todo.pomo_id); changed++; }
-      ops.push({ sql: "DELETE FROM hermes_todos WHERE id = ? AND master_id = ?", args: [todo.id, masterId] });
+      if (!routine) ops.push({ sql: "DELETE FROM hermes_todos WHERE id = ? AND master_id = ?", args: [todo.id, masterId] });
+      else if (todo.pomo_id) ops.push({ sql: "UPDATE hermes_todos SET pomo_id = NULL, pomo_done = 0 WHERE id = ? AND master_id = ?", args: [todo.id, masterId] });
       continue;
     }
     // ২. এখনো Pomodoro তে যায়নি এমন খোলা কাজ
     if (!todo.pomo_id) {
-      if (todo.status !== "open") continue;   // পুরনো শেষ করা কাজ পাঠাই না
+      const done = legacyDone.has(todo.id);
+      if (todo.status !== "open" && !done) continue;   // পুরনো শেষ করা কাজ পাঠাই না
       const id = `hermes-${todo.id}`;
       if (!map.has(id)) {
         const { list, dueDate } = listFor(todo.due_date, today);
-        tasks.push(newTask(id, todo.task, nowIso, { list, dueDate, priority: todo.priority ? 3 : 0 }));
+        tasks.push(newTask(id, todo.task, nowIso, {
+          list, dueDate, priority: todo.priority ? 3 : 0, ...extra(todo),
+          ...(done ? { completed: true, completedAt: nowIso } : {}),
+        }));
         tasksChanged = true; changed++;
       }
       linked.add(id);
-      ops.push({ sql: "UPDATE hermes_todos SET pomo_id = ?, pomo_done = 0 WHERE id = ? AND master_id = ?", args: [id, todo.id, masterId] });
+      ops.push({ sql: "UPDATE hermes_todos SET pomo_id = ?, pomo_done = ? WHERE id = ? AND master_id = ?", args: [id, done ? 1 : 0, todo.id, masterId] });
       continue;
     }
     // ৩. দুই দিকেই আছে (বা থাকার কথা)
@@ -101,11 +133,13 @@ export function plan(input: PlanInput): Plan {
     const task = map.get(todo.pomo_id);
     if (!task) {
       if (docExists) {   // Pomodoro তে মুছে ফেলা হয়েছে
-        ops.push({ sql: "DELETE FROM hermes_todos WHERE id = ? AND master_id = ?", args: [todo.id, masterId] });
+        ops.push(routine
+          ? { sql: "UPDATE hermes_todos SET status = 'deleted', pomo_id = NULL, pomo_done = 0, done_at = ? WHERE id = ? AND master_id = ?", args: [nowBd, todo.id, masterId] }
+          : { sql: "DELETE FROM hermes_todos WHERE id = ? AND master_id = ?", args: [todo.id, masterId] });
         changed++;
       } else if (todo.status === "open") {   // টাস্কের doc ই নেই (নতুন বা খালি): আবার বানাই
         const { list, dueDate } = listFor(todo.due_date, today);
-        tasks.push(newTask(todo.pomo_id, todo.task, nowIso, { list, dueDate, priority: todo.priority ? 3 : 0 }));
+        tasks.push(newTask(todo.pomo_id, todo.task, nowIso, { list, dueDate, priority: todo.priority ? 3 : 0, ...extra(todo) }));
         tasksChanged = true; changed++;
       }
       continue;
@@ -129,7 +163,14 @@ export function plan(input: PlanInput): Plan {
       changed++;
     }
     const title = String(task.title ?? "").trim();
-    if (title && title !== todo.task) {
+    if (routine) {
+      // রুটিনের কাজ: ব্লকই আসল, তাই নাম আর দিন এদিক থেকে যায়
+      const { list, dueDate } = listFor(todo.due_date, today);
+      if (title !== todo.task || task.list !== list || (task.dueDate ?? null) !== dueDate) {
+        Object.assign(task, { title: todo.task, list, dueDate });
+        tasksChanged = true; changed++;
+      }
+    } else if (title && title !== todo.task) {
       ops.push({ sql: "UPDATE hermes_todos SET task = ? WHERE id = ? AND master_id = ?", args: [title.slice(0, 300), todo.id, masterId] });
       changed++;
     }
@@ -148,28 +189,6 @@ export function plan(input: PlanInput): Plan {
       args: [masterId, title.slice(0, 300), (t.list === "Today" || !t.list) && t.dueDate === "Today" ? today : null, (t.priority ?? 0) > 0 ? 1 : 0, nowBd, t.id],
     });
     changed++;
-  }
-
-  // ৫. আজকের রুটিন ব্লক
-  const stamp = today.replaceAll("-", "");
-  const todays = blocks.filter((b) => (b.date ? b.date === today : b.days === "daily" || b.days.split(",").includes(dayCode)));
-  const want = new Map(todays.map((b) => [`routine-${b.id}-${stamp}`, b]));
-  for (const t of [...tasks]) {
-    if (!t.id.startsWith("routine-")) continue;
-    const stale = !t.id.endsWith(`-${stamp}`);           // অন্য দিনের
-    const gone = !stale && !want.has(t.id) && !t.completed;   // আজকের, কিন্তু ব্লকটা আর নেই
-    if (stale || gone) { removeTask(t.id); changed++; }
-  }
-  const have = byId();
-  for (const [id, b] of want) {
-    if (have.has(id)) continue;
-    const mins = b.end_time ? minutesOf(b.end_time) - minutesOf(b.start_time) : 25;
-    tasks.push(newTask(id, `📅 ${b.title}`, nowIso, {
-      category: "রুটিন", list: "Today", dueDate: "Today",
-      estimatedPomodoros: Math.max(1, Math.round(Math.max(mins, 25) / 25)),
-      notes: `রুটিন: ${b.start_time}${b.end_time ? `–${b.end_time}` : ""}`,
-    }));
-    tasksChanged = true; changed++;
   }
 
   return { tasks, tasksChanged, ops, changed };

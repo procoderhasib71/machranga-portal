@@ -19,7 +19,7 @@ test("নতুন খোলা to-do Pomodoro তে যায় আর লি
   assert.equal(p.tasks[0].dueDate, "Tomorrow");
   assert.equal(p.tasks[0].priority, 3);
   assert.ok(p.tasksChanged);
-  assert.deepEqual(p.ops[0].args, ["hermes-7", 7, "m1"]);
+  assert.deepEqual(p.ops[0].args, ["hermes-7", 0, 7, "m1"]);
 });
 
 test("আগের রানে Firestore এ গিয়েছিল কিন্তু লিংক সেভ হয়নি: দ্বিতীয় টাস্ক বানায় না", () => {
@@ -101,28 +101,42 @@ test("Pomodoro তে মুছলে to-do ও মোছে; কিন্তু
   assert.equal(noDoc.tasks[0].id, "p1");
 });
 
-test("আজকের রুটিন ব্লক টাস্ক হয়; অন্য দিনের আর পুরনো দিনেরগুলো সরে যায়", () => {
-  const p = plan({ ...base, todos: [],
-    blocks: [
-      { id: 3, days: "daily", start_time: "20:00", end_time: "22:00", title: "ফিজিক্স" },
-      { id: 4, days: "SAT", start_time: "16:00", end_time: null, title: "কেমিস্ট্রি" },
-    ],
-    tasks: [task({ id: "routine-3-20261111", title: "📅 ফিজিক্স", completed: true }), task({ id: "routine-9-20261112", title: "📅 বাদ পড়া ব্লক" })],
-  });
-  assert.deepEqual(p.tasks.map((t) => t.id), ["routine-3-20261112"]);
-  assert.equal(p.tasks[0].title, "📅 ফিজিক্স");
+test("রুটিনের কাজ Pomodoro তে যায় রুটিনের ক্যাটাগরি আর পোমোডোরো হিসাবসহ", () => {
+  const blocks = [{ id: 3, days: "daily", start_time: "20:00", end_time: "22:00", title: "ফিজিক্স" }];
+  const p = plan({ ...base, blocks, todos: [todo({ id: 9, task: "📅 ফিজিক্স · রাত ৮টা", due_date: "2026-11-12", routine_id: 3, routine_date: "2026-11-12" })], tasks: [] });
+  assert.equal(p.tasks[0].id, "hermes-9");
+  assert.equal(p.tasks[0].category, "রুটিন");
   assert.equal(p.tasks[0].estimatedPomodoros, 5);
-  assert.equal(p.ops.length, 0);   // রুটিন to-do তে আসে না
+  assert.equal(p.tasks[0].list, "Today");
 });
 
-test("তারিখের রুটিন ব্লক শুধু সেই দিনে Pomodoro তে যায় (১০ দিনের পরিকল্পনা একদিনে আসে না)", () => {
-  const blocks = Array.from({ length: 10 }, (_, i) => ({
-    id: 20 + i, days: "once", date: `2026-11-${String(12 + i).padStart(2, "0")}`, start_time: "19:00", end_time: "22:00", title: `কার্ডিওলজি: দিন ${i + 1}`,
-  }));
-  // আগের ভুলে আজ ১০টা টাস্কই চলে গিয়েছিল: এখন শুধু দিন ১ থাকবে, বাকি ৯টা সরে যাবে
-  const before = blocks.map((b) => task({ id: `routine-${b.id}-20261112`, title: `📅 ${b.title}` }));
-  const p = plan({ ...base, todos: [], blocks, tasks: before });
-  assert.deepEqual(p.tasks.map((t) => t.title), ["📅 কার্ডিওলজি: দিন 1"]);
+test("আগের ব্যবস্থার routine- টাস্ক সরে যায়; শেষ করা থাকলে নতুন কাজটাও শেষ হয়ে যায়", () => {
+  const p = plan({ ...base,
+    todos: [todo({ id: 9, task: "📅 দিন ১ · রাত ৮টা", due_date: "2026-11-12", routine_id: 20, routine_date: "2026-11-12" })],
+    tasks: [task({ id: "routine-20-20261112", title: "📅 দিন ১", completed: true }), task({ id: "routine-21-20261112", title: "📅 দিন ২" })],
+  });
+  assert.deepEqual(p.tasks.map((t) => [t.id, t.completed]), [["hermes-9", true]]);
+  assert.match(p.ops[0].sql, /status = 'done'/);
+  assert.deepEqual(p.ops[1].args, ["hermes-9", 1, 9, "m1"]);
+});
+
+test("রুটিনের কাজের নাম/দিন পোর্টাল থেকে Pomodoro তে যায় (উল্টোটা না)", () => {
+  const r = { routine_id: 20, routine_date: "2026-11-14", due_date: "2026-11-14", pomo_id: "hermes-9" };
+  const p = plan({ ...base, todos: [todo({ id: 9, task: "📅 নতুন নাম · রাত ৯টা", ...r })],
+    tasks: [task({ id: "hermes-9", title: "📅 পুরনো নাম", list: "Today", dueDate: "Today" })] });
+  assert.equal(p.tasks[0].title, "📅 নতুন নাম · রাত ৯টা");
+  assert.equal(p.tasks[0].list, "This Week");
+  assert.ok(p.tasksChanged);
+  assert.ok(!p.ops.some((o) => o.sql.startsWith("UPDATE hermes_todos SET task")));
+});
+
+test("রুটিনের কাজ মুছলে সারি থাকে (আবার বানানো না হয়), Pomodoro তে মুছলেও", () => {
+  const r = { routine_id: 20, routine_date: "2026-11-12", pomo_id: "hermes-9" };
+  const a = plan({ ...base, todos: [todo({ id: 9, status: "deleted", ...r })], tasks: [task({ id: "hermes-9" })] });
+  assert.equal(a.tasks.length, 0);
+  assert.match(a.ops[0].sql, /SET pomo_id = NULL/);
+  const b = plan({ ...base, todos: [todo({ id: 9, ...r })], tasks: [] });
+  assert.match(b.ops[0].sql, /SET status = 'deleted', pomo_id = NULL/);
 });
 
 test("listFor: তারিখ অনুযায়ী Pomodoro র তালিকা", () => {

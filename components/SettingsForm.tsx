@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import Switch from "./Switch";
 
 type Props = {
   todoDigest: string; newsTime: string; newsTopics: string; moodCheckin: string;
@@ -19,23 +20,11 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   );
 }
 
-/** ফোনের মতো চালু/বন্ধ সুইচ */
-function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
-      className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors"
-      style={{ background: on ? "var(--brand)" : "var(--line)" }}>
-      <span className="inline-block size-5 rounded-full bg-white shadow transition-transform"
-        style={{ transform: on ? "translateX(24px)" : "translateX(4px)" }} />
-    </button>
-  );
-}
-
 function TimeToggle({ value, defaultTime, onChange, label }: { value: string; defaultTime: string; onChange: (v: string) => void; label: string }) {
   return (
     <div className="flex items-center gap-2.5">
       {value && <input type="time" value={value} onChange={(e) => e.target.value && onChange(e.target.value)} aria-label={`${label}: সময়`}
-        className="bg-transparent border rounded-lg px-2 py-1 text-sm num" style={{ borderColor: "var(--line)" }} />}
+        className="field field-sm num" />}
       <Switch on={!!value} onChange={(v) => onChange(v ? defaultTime : "")} label={label} />
     </div>
   );

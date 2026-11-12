@@ -14,14 +14,14 @@ export async function getUser(mid: string): Promise<User | null> {
     [mid]);
 }
 
-export type Todo = { id: number; task: string; due_date: string | null; priority: number; status: string; done_at: string | null };
+export type Todo = { id: number; task: string; due_date: string | null; priority: number; status: string; done_at: string | null; routine_id: number | null };
 
 export async function getTodos(mid: string): Promise<{ open: Todo[]; done: Todo[] }> {
   const open = await query<Todo>(
-    "SELECT id, task, due_date, priority, status, done_at FROM hermes_todos WHERE master_id = ? AND status = 'open' " +
-    "ORDER BY priority DESC, CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date, id", [mid]);
+    "SELECT id, task, due_date, priority, status, done_at, routine_id FROM hermes_todos WHERE master_id = ? AND status = 'open' " +
+    "ORDER BY CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date, priority DESC, id", [mid]);
   const done = await query<Todo>(
-    "SELECT id, task, due_date, priority, status, done_at FROM hermes_todos WHERE master_id = ? AND status = 'done' " +
+    "SELECT id, task, due_date, priority, status, done_at, routine_id FROM hermes_todos WHERE master_id = ? AND status = 'done' " +
     "ORDER BY done_at DESC LIMIT 20", [mid]);
   return { open, done };
 }

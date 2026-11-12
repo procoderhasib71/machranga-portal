@@ -125,17 +125,63 @@ body {
 .link:hover { color: var(--brand-strong); }
 
 /* ---------- ফর্ম আর বোতাম ---------- */
-.field {
-  display: block; width: 100%; margin-top: 0.375rem;
-  padding: 0.75rem 1rem; border-radius: 0.75rem;
-  border: 1px solid var(--line); background: var(--surface-2);
-  color: var(--ink); font-weight: 400; outline: none;
+/* লেখার বক্স: হালকা ভরাট, ছুঁলে বর্ডার গাঢ়, লিখতে গেলে সবুজ রিং */
+.field, .shell {
+  border: 1.5px solid var(--line); background: var(--surface-2);
+  color: var(--ink); border-radius: 0.875rem;
   transition: border-color .15s, box-shadow .15s, background .15s;
 }
+.field {
+  display: block; width: 100%; margin-top: 0.4rem;
+  min-height: 2.875rem; padding: 0.7rem 0.95rem;
+  font-size: 0.9375rem; font-weight: 400; line-height: 1.4; outline: none;
+}
 .field::placeholder { color: var(--faint); }
-.field:focus { border-color: var(--brand); background: var(--surface); box-shadow: 0 0 0 3px var(--brand-soft); }
+.field:hover, .shell:hover { border-color: color-mix(in srgb, var(--faint) 55%, var(--line)); }
+.field:focus, .shell:focus-within {
+  border-color: var(--brand); background: var(--surface);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 16%, transparent);
+}
+.field-sm { min-height: 2.375rem; padding: 0.4rem 0.7rem; font-size: 0.875rem; margin-top: 0; width: auto; border-radius: 0.7rem; }
+textarea.field { resize: vertical; min-height: 4.5rem; }
+.field[type="date"], .field[type="time"] { font-variant-numeric: tabular-nums; }
+.field::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }
+.field::-webkit-calendar-picker-indicator:hover { opacity: .9; }
+/* আইকন বা বোতামসহ এক সারির বক্স (খোঁজা, নতুন কাজ): ভেতরের input এর নিজের বর্ডার থাকে না */
+.shell { display: flex; align-items: center; gap: 0.5rem; padding: 0 0.85rem; }
+.shell > input { flex: 1; min-width: 0; background: transparent; outline: none; padding: 0.7rem 0; font-size: 0.9375rem; }
+.shell > input::placeholder { color: var(--faint); }
+.label { display: block; font-size: 0.875rem; font-weight: 600; }
+.label .hint { display: block; font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-top: 0.125rem; }
 
-.btn-primary, .btn-outline, .btn-ghost {
+/* দুই-তিন ভাগের বাছাই আর দিনের টগল */
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0.25rem; padding: 0.25rem; border-radius: 0.875rem; background: var(--surface-2); border: 1.5px solid var(--line); }
+.seg > button { padding: 0.5rem 0.75rem; border-radius: 0.625rem; font-size: 0.875rem; font-weight: 600; color: var(--muted); transition: background .15s, color .15s; cursor: pointer; }
+.seg > button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.toggle {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem;
+  padding: 0.45rem 0.7rem; border-radius: 0.7rem; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--surface-2); color: var(--muted); transition: all .15s;
+}
+.toggle[aria-pressed="true"] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); }
+
+/* ফোনে নিচ থেকে ওঠা শিট, কম্পিউটারে মাঝখানে */
+.sheet-backdrop { position: fixed; inset: 0; z-index: 60; background: rgb(4 12 10 / 0.45); display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  width: 100%; max-height: 92dvh; overflow-y: auto; background: var(--surface);
+  border-radius: 1.25rem 1.25rem 0 0; box-shadow: var(--shadow-lg);
+  padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+  animation: sheet-up .22s ease-out both;
+}
+@media (min-width: 640px) {
+  .sheet-backdrop { align-items: center; padding: 1.5rem; }
+  .sheet { max-width: 32rem; border-radius: 1.25rem; padding: 1.5rem; animation-name: rise; }
+}
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.btn-danger { background: var(--danger-soft); color: var(--danger); border: 0; }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+
+.btn-primary, .btn-outline, .btn-ghost, .btn-danger {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
   padding: 0.75rem 1.125rem; border-radius: 0.75rem;
   font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s, transform .05s;
