@@ -86,6 +86,50 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
     await exec("UPDATE hermes_routine_blocks SET title = ? WHERE id = ? AND master_id = ?", [retitle(rb.title, topicOf(ra.title)), b2, mid]);
     return null;
   }
+  if (action === "edit_plan") {
+    // বানানো plan বদলানো: নাম, সময়, বাকি অধ্যায় আর শেষের তারিখ। যে দিনগুলো হয়ে গেছে সেগুলো থাকে; বাকি দিনগুলো নতুন করে সাজানো।
+    const pid = Number(body.plan_id ?? 0);
+    const plan = pid ? await one<{ id: number; name: string }>("SELECT id, name FROM hermes_plans WHERE id = ? AND master_id = ?", [pid, mid]) : null;
+    if (!plan) return fail("পরিকল্পনাটা পাওয়া যায়নি", 404);
+    const name = String(body.name ?? "").trim().slice(0, 80);
+    const st = String(body.start_time ?? ""), et = String(body.end_time ?? "") || null;
+    if (!name) return fail("পরিকল্পনার নাম দাও");
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(st)) return fail("পড়ার সময় দাও");
+    const today = todayBD();
+    const rows = await query<{ id: number; date: string; title: string; status: string | null }>(
+      "SELECT b.id, b.date, b.title, (SELECT t.status FROM hermes_todos t WHERE t.routine_id = b.id AND t.routine_date = b.date AND t.master_id = b.master_id LIMIT 1) AS status " +
+      "FROM hermes_routine_blocks b WHERE b.master_id = ? AND b.plan_id = ? ORDER BY b.date", [mid, pid]);
+    const doneToday = rows.some((r) => r.date === today && r.status === "done");
+    const from = doneToday ? new Date(Date.parse(`${today}T00:00:00Z`) + 86400000).toISOString().slice(0, 10) : today;
+    const keep = rows.filter((r) => r.date < from || r.status === "done");
+    const drop = rows.filter((r) => !keep.includes(r));
+    const topics = String(body.topics ?? "").split(/\n|,|;/);
+    const end = String(body.exam_date ?? "");
+    const r = buildExamPlan(name, topics, end, from, Number(body.revision_days ?? 1));
+    if (!r.ok) return fail(r.error);
+    const total = await one<{ n: number }>("SELECT COUNT(*) AS n FROM hermes_routine_blocks WHERE master_id = ?", [mid]);
+    if ((total?.n ?? 0) - drop.length + r.days.length > MAX_BLOCKS) return fail(`রুটিনে ${MAX_BLOCKS}টার বেশি ব্লক রাখা যাবে না`);
+    const dayNo = keep.filter((k) => / — /.test(k.title) || /: দিন /.test(k.title)).length;
+    const BN = "০১২৩৪৫৬৭৮৯";
+    const bn = (n: number) => String(n).replace(/\d/g, (d) => BN[Number(d)]);
+    if (drop.length) await exec(`DELETE FROM hermes_routine_blocks WHERE master_id = ? AND id IN (${drop.map(() => "?").join(",")})`, [mid, ...drop.map((x) => x.id)]);
+    for (const d of r.days) {
+      const title = d.title.replace(/^(.*?): দিন [০-৯]+ — /, (_m, n) => `${n}: দিন ${bn(dayNo + r.days.indexOf(d) + 1)} — `);
+      await exec("INSERT INTO hermes_routine_blocks (master_id, days, date, start_time, end_time, title, note, remind, focus, plan_id, created_at) VALUES (?, 'once', ?, ?, ?, ?, NULL, 1, NULL, ?, ?)",
+        [mid, d.date, st, et, title, pid, bdNow()]);
+    }
+    // আগের (হয়ে যাওয়া) দিনগুলোর নামও নতুন নামে
+    if (name !== plan.name) {
+      for (const k of keep) {
+        const i = k.title.indexOf(":");
+        if (i > 0) await exec("UPDATE hermes_routine_blocks SET title = ? WHERE id = ? AND master_id = ?", [`${name}${k.title.slice(i)}`, k.id, mid]);
+      }
+    }
+    await exec("UPDATE hermes_plans SET name = ?, start_time = ?, end_time = ?, exam_date = CASE WHEN ? = 1 THEN ? ELSE exam_date END WHERE id = ? AND master_id = ?",
+      [name, st, et, body.is_exam ? 1 : 0, end, pid, mid]);
+    await refreshPlanDates(mid);
+    return null;
+  }
   if (action === "create_plan") {
     // আগে plan, তার অধীনে দিন ধরে পড়ার ব্লক (বটের make_exam_plan এর মতো)
     const name = String(body.name ?? "").trim().slice(0, 80);
@@ -159,7 +203,7 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
     else await exec("INSERT OR IGNORE INTO hermes_day_off (master_id, date, created_at) VALUES (?, ?, ?)", [mid, date, bdNow()]);
     return null;
   }
-  return fail("action হবে add, update, delete, delete_plan, shift_plan, swap_days, create_plan, copy_day, day_off বা apply_template");
+  return fail("action হবে add, update, delete, delete_plan, edit_plan, shift_plan, swap_days, create_plan, copy_day, day_off বা apply_template");
 }
 
 export async function POST(req: NextRequest) {

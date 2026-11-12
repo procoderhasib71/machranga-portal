@@ -1,7 +1,7 @@
 "use client";
 // "পরিকল্পনা" ভিউ: আগে plan, তার অধীনে দিন ধরে পড়া। প্রতিটা plan এর অগ্রগতি, অধ্যায়ের তালিকা (শেষ/মিস/আজ/সামনে),
 // এক চাপে পিছিয়ে দেওয়া, অধ্যায় অদলবদল/বদলানো, আর পোর্টাল থেকেই নতুন plan (বই বাছলে অধ্যায় নিজে বসে)।
-import { ArrowDown, ArrowUp, BookOpen, CalendarClock, Check, ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, CalendarClock, Check, ChevronDown, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { bnDigits, humanTime } from "@/lib/bn";
@@ -78,6 +78,75 @@ function DayRow({ d, i, today, prev, next }: { d: PlanDay; i: number; today: str
   );
 }
 
+/** বানানো plan বদলানো: নাম, সময়, বাকি অধ্যায় আর শেষের তারিখ। হয়ে যাওয়া দিনগুলো থাকে, বাকিগুলো নতুন করে সাজে */
+function EditPlanButton({ plan, today }: { plan: PlanSummary; today: string }) {
+  const [open, setOpen] = useState(false);
+  const { pending, error, run } = useApi();
+  const first = plan.days[0].block;
+  const remaining = plan.days.filter((d) => d.status !== "done" && d.date >= today);
+  const chapterList = () => [...new Set(remaining.filter((d) => !d.topic.startsWith("রিভিশন")).flatMap((d) => d.topic.split(" + ").map(baseTopic)))];
+  const [name, setName] = useState(plan.name);
+  const [topics, setTopics] = useState("");
+  const [st, setSt] = useState(first.start_time);
+  const [et, setEt] = useState(first.end_time ?? "");
+  const [end, setEnd] = useState(plan.examDate ?? addDays(plan.to, 1));
+  const [rev, setRev] = useState(remaining.filter((d) => d.topic.startsWith("রিভিশন")).length);
+  const from = remaining[0]?.date ?? today;
+  const preview = useMemo(() => buildExamPlan(name || "পড়া", topics.split(/\n|,|;/), end, from < today ? today : from, rev), [name, topics, end, from, today, rev]);
+  const count = topics.split(/\n|,|;/).filter((t) => t.trim()).length;
+  const openIt = () => { setName(plan.name); setTopics(chapterList().join("\n")); setOpen(true); };
+  return (
+    <>
+      <button type="button" onClick={openIt} className="btn-ghost rounded-lg shrink-0" aria-label="পরিকল্পনা বদলাও" title="বদলাও"><Pencil size={16} /></button>
+      {open && (
+        <Sheet title="পরিকল্পনা বদলাও" onClose={() => setOpen(false)}>
+          <div className="space-y-4">
+            <label className="label">পরিকল্পনার নাম
+              <input className="field" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+            </label>
+            <label className="label">বাকি অধ্যায় <span className="font-normal muted num">· প্রতি লাইনে একটা{count ? ` · ${bnDigits(count)}টা` : ""}</span>
+              <textarea className="field" rows={6} value={topics} onChange={(e) => setTopics(e.target.value)} />
+            </label>
+            <p className="text-xs muted -mt-2">যে অধ্যায় বাদ দিতে চাও লাইনটা মুছো, নতুন চাইলে লাইন যোগ করো, ক্রম বদলাতে লাইন ওঠানামা করাও। শেষ হয়ে যাওয়া দিনগুলো যেমন আছে তেমনই থাকবে।</p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="label">পড়া শুরু
+                <input className="field" type="time" value={st} onChange={(e) => setSt(e.target.value)} />
+              </label>
+              <label className="label">শেষ
+                <input className="field" type="time" value={et} onChange={(e) => setEt(e.target.value)} />
+              </label>
+              <label className="label">{plan.examDate ? "পরীক্ষার দিন" : "শেষের পরের দিন"}
+                <input className="field" type="date" value={end} min={addDays(from, 1)} onChange={(e) => setEnd(e.target.value)} />
+              </label>
+              <label className="label">শেষে রিভিশন (দিন)
+                <input className="field num" type="number" min={0} max={14} value={rev} onChange={(e) => setRev(Math.max(0, Number(e.target.value) || 0))} />
+              </label>
+            </div>
+            {preview.ok && count > 0 && (
+              <div className="rounded-xl p-3" style={{ background: "var(--surface-2)" }}>
+                <p className="text-xs muted mb-2 num">{range(from, addDays(end, -1))} · {bnDigits(preview.studyDays)} দিন পড়া + {bnDigits(preview.revision)} দিন রিভিশন</p>
+                <ul className="space-y-1 max-h-40 overflow-y-auto pr-1 text-sm">
+                  {groupDays(preview.days).map((g) => (
+                    <li key={g.from} className="flex gap-3"><span className="num muted w-24 shrink-0">{range(g.from, g.to)}</span><span className="font-medium">{g.topic}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {!preview.ok && count > 0 && <p className="text-sm" style={{ color: "var(--danger)" }}>{preview.error}</p>}
+            {error && <p className="text-sm rounded-xl p-3" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>{error}</p>}
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setOpen(false)} className="btn-outline ml-auto">থাক</button>
+              <button type="button" disabled={pending || !preview.ok || !count || !name.trim() || !st}
+                onClick={() => run({ action: "edit_plan", plan_id: plan.id, name, topics, start_time: st, end_time: et, exam_date: end, is_exam: !!plan.examDate, revision_days: rev }, () => setOpen(false))}
+                className="btn-primary">{pending ? "রাখছি…" : "রাখো"}</button>
+            </div>
+          </div>
+        </Sheet>
+      )}
+    </>
+  );
+}
+
 /** একটা plan এর বিস্তারিত */
 export function PlanDetail({ plan, today, progress = {} }: { plan: PlanSummary; today: string; progress?: Record<string, ChapterProgress> }) {
   const [all, setAll] = useState(false);
@@ -110,7 +179,10 @@ export function PlanDetail({ plan, today, progress = {} }: { plan: PlanSummary; 
             <button type="button" onClick={() => setConfirm(false)} className="btn-ghost rounded-lg" aria-label="থাক"><X size={15} /></button>
           </span>
         ) : (
+          <span className="flex items-center shrink-0">
+            {plan.id && !plan.finished && <EditPlanButton plan={plan} today={today} />}
           <button type="button" onClick={() => setConfirm(true)} className="btn-ghost rounded-lg shrink-0" aria-label="পরিকল্পনা মুছো"><Trash2 size={16} /></button>
+          </span>
         )}
       </div>
 
