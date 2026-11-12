@@ -1,6 +1,7 @@
 // Pomodoro ↔ to-do sync এর আসল কাজ: Firestore (Pomodoro র টাস্ক) আর Turso (to-do, রুটিন) পড়ে-লেখা।
 // নিয়ম lib/pomodoroPlan.ts এ। পোর্টাল App Hosting এ একই Firebase project এ চলে, তাই আলাদা key লাগে না।
 import { createHash, timingSafeEqual } from "node:crypto";
+import { after } from "next/server";
 import { getFirestore } from "firebase-admin/firestore";
 import { adminApp } from "./firebaseAdmin";
 import { db, query } from "./db";
@@ -96,6 +97,17 @@ export async function syncMasterQuietly(masterId: string): Promise<void> {
   } catch (e) {
     console.error("Pomodoro sync (পোর্টাল থেকে) ব্যর্থ:", e);
   }
+}
+
+/** পেজ খোলা বা পোর্টালে বদলের সময়: রুটিন → কাজ (শুধু Turso, দ্রুত) এখনই, যাতে নতুন ব্লকের টিক সাথে সাথে চলে;
+ *  Pomodoro (Firestore, ধীর) উত্তর পাঠানোর পরে। scheduler প্রতি মিনিটে পুরো sync করেই, তাই দেরিতেও মিলে যায়। */
+export async function syncForRequest(masterId: string): Promise<void> {
+  try {
+    await syncRoutineTodos(masterId);
+  } catch (e) {
+    console.error("রুটিন → কাজ sync ব্যর্থ:", e);
+  }
+  after(() => syncMasterQuietly(masterId));
 }
 
 /** /api/health এর জন্য: Firestore এ পড়ার অনুমতি আছে কিনা */

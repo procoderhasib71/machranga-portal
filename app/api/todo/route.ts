@@ -1,7 +1,7 @@
 // To-do বদলানো: পোর্টাল থেকে করলেও বট একই টেবিল দেখে, তাই সাথে সাথে মিলে যায়; Pomodoro যুক্ত থাকলে সেখানেও
 import { NextRequest, NextResponse } from "next/server";
 import { exec, one } from "@/lib/db";
-import { syncMasterQuietly } from "@/lib/pomodoroSync";
+import { syncForRequest } from "@/lib/pomodoroSync";
 import { getMasterId } from "@/lib/session";
 
 const MAX_OPEN = 100;
@@ -46,6 +46,6 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const err = await run(mid, body);
   if (err) return err;
-  await syncMasterQuietly(mid);
+  await syncForRequest(mid);   // রুটিন → কাজ এখনই, Pomodoro উত্তর পাঠানোর পরে
   return NextResponse.json({ ok: true });
 }

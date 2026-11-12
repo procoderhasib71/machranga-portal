@@ -9,7 +9,7 @@ import { getNews, timeAgo, type NewsItem } from "@/lib/news";
 import { CardHead, Empty } from "@/components/PageHeader";
 import TodayPlan from "@/components/TodayPlan";
 import { buildToday } from "@/lib/todayPlan";
-import { syncMasterQuietly } from "@/lib/pomodoroSync";
+import { syncForRequest } from "@/lib/pomodoroSync";
 import InstallApp from "@/components/InstallApp";
 import Reminders, { AddReminderButton } from "@/components/Reminders";
 
@@ -27,17 +27,20 @@ function Stat({ label, value, sub, tone = "brand", delay = 0, className = "" }: 
 
 export default async function Dashboard() {
   const mid = await requireMasterId();
-  await syncMasterQuietly(mid);   // Pomodoro তে যোগ করা কাজও আজকের তালিকায় আসুক
-  const [user, todos, routine, reminders, sub, health] = await Promise.all([
-    getUser(mid), getTodos(mid), getRoutine(mid), getReminders(mid), getSubscription(mid), getHealthLogs(mid, 14),
-  ]);
-  const firstTopic = (user?.news_topics ?? "").split(",")[0]?.trim() ?? "";
-  const news = (await getNews(firstTopic).catch(() => ({ items: [] as NewsItem[] }))).items.slice(0, 4);
-  const now = nowBD();
   const today = todayBD();
+  // খবর ইউজারের বিষয় জানলেই শুরু; রুটিন → কাজ sync এর সাথে একসাথে চলে
+  const userP = getUser(mid);
+  const newsP = userP.then((u) => getNews((u?.news_topics ?? "").split(",")[0]?.trim() ?? "")).catch(() => ({ items: [] as NewsItem[] }));
+  await syncForRequest(mid);   // রুটিন → কাজ এখনই, Pomodoro উত্তর পাঠানোর পরে
+  const [user, todos, routine, reminders, sub, health, daysOff, newsRes] = await Promise.all([
+    userP, getTodos(mid), getRoutine(mid), getReminders(mid), getSubscription(mid), getHealthLogs(mid, 14), getDaysOff(mid, today, today), newsP,
+  ]);
+  const news = newsRes.items.slice(0, 4);
+  const now = nowBD();
   const hhmm = nowHHMM(now);
   const dayCode = DAY_ORDER[(now.getDay() + 1) % 7];   // JS: রবি=0 → আমাদের ক্রমে
-  const off = (await getDaysOff(mid, today, today)).has(today);
+  const off = daysOff.has(today);
+  const firstTopic = (user?.news_topics ?? "").split(",")[0]?.trim() ?? "";
   const blocks = todaysBlocks(routine, dayCode).filter((b) => b.date || !off);   // ছুটির দিনে সাপ্তাহিক বাদ
   // রুটিনের ব্লক আর সময় ছাড়া কাজ এক তালিকায় (কাজের আলাদা পেজ নেই)
   const plan = buildToday(blocks, [...todos.open, ...todos.done], today, hhmm);

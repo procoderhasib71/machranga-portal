@@ -70,7 +70,9 @@ function initial(b: RoutineBlock | undefined, today: string, kind: "date" | "wee
   };
 }
 
-function BlockForm({ block, today, kind = "date", days, onClose }: { block?: RoutineBlock; today: string; kind?: "date" | "weekly"; days?: string[]; onClose: () => void }) {
+function BlockForm({ block, today, kind = "date", days, onClose, onDelete }: {
+  block?: RoutineBlock; today: string; kind?: "date" | "weekly"; days?: string[]; onClose: () => void; onDelete?: () => void;
+}) {
   const [f, setF] = useState(() => initial(block, today, kind, days));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { pending, error, run } = useAction(onClose);
@@ -159,7 +161,7 @@ function BlockForm({ block, today, kind = "date", days, onClose }: { block?: Rou
 
         <div className="flex items-center gap-2 pt-1">
           {block && (confirmDelete ? (
-            <button type="button" disabled={pending} onClick={() => run({ action: "delete", id: block.id })} className="btn-danger">
+            <button type="button" disabled={pending} onClick={() => (onDelete ? onDelete() : run({ action: "delete", id: block.id }))} className="btn-danger">
               <Trash2 size={16} /> নিশ্চিত, মুছো
             </button>
           ) : (
@@ -177,8 +179,21 @@ function BlockForm({ block, today, kind = "date", days, onClose }: { block?: Rou
 }
 
 /** রুটিনের একটা ব্লক; চাপলে বদলানোর ফর্ম */
+/** মোছা সাথে সাথে দেখাই (সার্ভারের অপেক্ষা না করে); ব্যর্থ হলে ফিরিয়ে এনে জানাই */
+function useInstantRemove(payload: Record<string, unknown>) {
+  const router = useRouter();
+  const [gone, setGone] = useState(false);
+  const remove = () => {
+    setGone(true);
+    call(payload).then(() => router.refresh()).catch(() => { setGone(false); alert("মোছা গেল না, আবার চেষ্টা করো"); });
+  };
+  return { gone, remove };
+}
+
 export function EditableBlock({ b, today }: { b: RoutineBlock; today: string }) {
   const [open, setOpen] = useState(false);
+  const { gone, remove } = useInstantRemove({ action: "delete", id: b.id });
+  if (gone) return null;
   return (
     <li>
       <button type="button" onClick={() => setOpen(true)} title="বদলাতে বা মুছতে চাপো"
@@ -193,7 +208,7 @@ export function EditableBlock({ b, today }: { b: RoutineBlock; today: string }) 
         <p className="text-sm font-medium leading-snug mt-0.5">{b.title}</p>
         {b.note && <p className="text-xs muted mt-1">💡 {b.note}</p>}
       </button>
-      {open && <BlockForm block={b} today={today} onClose={() => setOpen(false)} />}
+      {open && <BlockForm block={b} today={today} onClose={() => setOpen(false)} onDelete={() => { setOpen(false); remove(); }} />}
     </li>
   );
 }
@@ -265,10 +280,12 @@ function rangeBn(from: string, to: string): string {
 /** তারিখের পরিকল্পনা ("কার্ডিওলজি: দিন ১…৪"): কবে থেকে কবে, প্রতিটা দিনের অবস্থা, আর একসাথে মোছা */
 export function PlanCard({ plan, today }: { plan: PlanSummary; today: string }) {
   const [confirm, setConfirm] = useState(false);
-  const { pending, error, run } = useAction(() => setConfirm(false));
+  const { pending, error } = useAction(() => setConfirm(false));
+  const { gone, remove } = useInstantRemove({ action: "delete_plan", plan: plan.name });
   const total = plan.days.length;
   const tomorrow = new Date(Date.parse(`${today}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
   const next = !plan.next ? "সব দিন পেরিয়েছে" : plan.next === today ? "আজ পড়ার দিন" : plan.next === tomorrow ? "পরেরটা কাল" : `পরেরটা ${bnDigits(dm(plan.next).d)} ${MONTHS_SHORT[dm(plan.next).m]}`;
+  if (gone) return null;
   return (
     <li className="card p-4 rise">
       <div className="flex items-start gap-3">
@@ -278,7 +295,7 @@ export function PlanCard({ plan, today }: { plan: PlanSummary; today: string }) 
         </div>
         {confirm ? (
           <span className="flex items-center gap-1 shrink-0">
-            <button type="button" disabled={pending} onClick={() => run({ action: "delete_plan", plan: plan.name })} className="btn-danger text-xs py-1.5 px-2.5 rounded-lg">সব মুছো</button>
+            <button type="button" disabled={pending} onClick={remove} className="btn-danger text-xs py-1.5 px-2.5 rounded-lg">সব মুছো</button>
             <button type="button" onClick={() => setConfirm(false)} className="btn-ghost rounded-lg" aria-label="থাক"><X size={15} /></button>
           </span>
         ) : (

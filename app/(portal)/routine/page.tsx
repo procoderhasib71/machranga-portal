@@ -5,7 +5,7 @@ import { requireMasterId } from "@/lib/session";
 import { getDaysOff, getPlanBlocks, getRoutine, getRoutineMonth, getTodos, todaysBlocks } from "@/lib/data";
 import { buildPlans } from "@/lib/plans";
 import { buildToday, laterTasks } from "@/lib/todayPlan";
-import { syncMasterQuietly } from "@/lib/pomodoroSync";
+import { syncForRequest } from "@/lib/pomodoroSync";
 import TodayPlan from "@/components/TodayPlan";
 import { buildMonth, monthRange, validMonth } from "@/lib/calendar";
 import MonthCalendar from "@/components/MonthCalendar";
@@ -20,7 +20,7 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const view = sp.view === "month" ? "month" : sp.view === "week" ? "week" : "list";
   const month = view === "month" ? validMonth(sp.m, todayBD().slice(0, 7)) : null;
-  await syncMasterQuietly(mid);   // রুটিনের আজকের কাজ আর Pomodoro তে যোগ করা কাজ আগে মিলিয়ে নিই
+  await syncForRequest(mid);   // রুটিন → কাজ এখনই, Pomodoro উত্তর পাঠানোর পরে
   const [all, todos, planData, offToday] = await Promise.all([getRoutine(mid), getTodos(mid), getPlanBlocks(mid), getDaysOff(mid, todayBD(), todayBD())]);
   const blocks = all.filter((b) => !b.date);   // সাপ্তাহিক
   const dated = all.filter((b) => b.date);     // নির্দিষ্ট তারিখের (আজ থেকে সামনের)

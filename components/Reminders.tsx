@@ -21,7 +21,7 @@ function ruleBn(rule: string | null): string {
 
 const nowBd = () => new Date().toLocaleString("sv-SE", { timeZone: "Asia/Dhaka" });
 
-function ReminderForm({ row, onClose }: { row?: ReminderRow; onClose: () => void }) {
+function ReminderForm({ row, onClose, onDelete }: { row?: ReminderRow; onClose: () => void; onDelete?: (id: number) => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const rule = row?.repeat_rule ?? "";
@@ -85,7 +85,7 @@ function ReminderForm({ row, onClose }: { row?: ReminderRow; onClose: () => void
 
         <div className="flex items-center gap-2 pt-1">
           {row && (confirm ? (
-            <button type="button" disabled={pending} onClick={() => send({ action: "delete", id: row.id })} className="btn-danger"><Trash2 size={16} /> নিশ্চিত, বাদ দাও</button>
+            <button type="button" disabled={pending} onClick={() => (onDelete ? onDelete(row.id) : send({ action: "delete", id: row.id }))} className="btn-danger"><Trash2 size={16} /> নিশ্চিত, বাদ দাও</button>
           ) : (
             <button type="button" onClick={() => setConfirm(true)} className="btn-ghost rounded-xl px-3" aria-label="রিমাইন্ডার বাদ দাও"><Trash2 size={18} /></button>
           ))}
@@ -109,11 +109,21 @@ export function AddReminderButton({ className = "link" }: { className?: string }
 }
 
 export default function Reminders({ rows }: { rows: ReminderRow[] }) {
+  const router = useRouter();
   const [edit, setEdit] = useState<ReminderRow | null>(null);
+  const [hidden, setHidden] = useState<number[]>([]);
+  // বাদ দিলে সাথে সাথে তালিকা থেকে সরাই; সার্ভার পেছনে, ব্যর্থ হলে ফিরিয়ে আনি
+  const remove = (id: number) => {
+    setEdit(null);
+    setHidden((h) => [...h, id]);
+    fetch("/api/reminder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", id }) })
+      .then((r) => { if (!r.ok) throw new Error(); router.refresh(); })
+      .catch(() => { setHidden((h) => h.filter((x) => x !== id)); alert("বাদ দেওয়া গেল না, আবার চেষ্টা করো"); });
+  };
   return (
     <>
       <ul className="space-y-1">
-        {rows.map((r) => (
+        {rows.filter((r) => !hidden.includes(r.id)).map((r) => (
           <li key={r.id}>
             <button type="button" onClick={() => setEdit(r)} title="বদলাতে বা বাদ দিতে চাপো"
               className="w-full flex items-center gap-3 text-left rounded-xl px-2 py-2 -mx-2 hover:bg-[var(--surface-2)] transition-colors">
@@ -124,7 +134,7 @@ export default function Reminders({ rows }: { rows: ReminderRow[] }) {
           </li>
         ))}
       </ul>
-      {edit && <ReminderForm row={edit} onClose={() => setEdit(null)} />}
+      {edit && <ReminderForm row={edit} onClose={() => setEdit(null)} onDelete={remove} />}
     </>
   );
 }

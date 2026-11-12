@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { exec, one, query } from "@/lib/db";
 import { todayBD } from "@/lib/bn";
 import { DAY_CODES, MAX_BLOCKS, cleanBlock, copyDayPlan, planName } from "@/lib/routineEdit";
-import { syncMasterQuietly } from "@/lib/pomodoroSync";
+import { syncForRequest } from "@/lib/pomodoroSync";
 import { getMasterId } from "@/lib/session";
 import { TEMPLATES, templateRows } from "@/lib/templates";
 
@@ -96,6 +96,6 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const err = await run(mid, body);
   if (err) return err;
-  await syncMasterQuietly(mid);   // কাজের লিস্ট আর Pomodoro সাথে সাথে মিলে যায়
+  await syncForRequest(mid);   // রুটিন → কাজ এখনই, Pomodoro উত্তর পাঠানোর পরে
   return NextResponse.json({ ok: true });
 }

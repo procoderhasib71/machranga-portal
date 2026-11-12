@@ -3,7 +3,7 @@ import { requireMasterId } from "@/lib/session";
 import { getStudyDays, getStudyTotals } from "@/lib/data";
 import { bnDigits, humanDate } from "@/lib/bn";
 import { getFocusByDay, getRoutineDays, lastDays, streak } from "@/lib/progress";
-import { syncMasterQuietly } from "@/lib/pomodoroSync";
+import { syncForRequest } from "@/lib/pomodoroSync";
 import PageHeader, { CardHead, Empty } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ function Tile({ label, Icon, value, sub, tone, delay }: {
 
 export default async function StudyPage() {
   const mid = await requireMasterId();
-  await syncMasterQuietly(mid);   // Pomodoro তে শেষ করা রুটিনও হিসাবে আসুক
+  await syncForRequest(mid);   // রুটিন → কাজ এখনই, Pomodoro উত্তর পাঠানোর পরে
   const days = lastDays(14);
   const week = days.slice(-7);
   const [totals, mcqRows, routine, focus] = await Promise.all([

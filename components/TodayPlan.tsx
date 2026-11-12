@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { humanDate, humanTime } from "@/lib/bn";
 import type { TodayBlock, TodayTask } from "@/lib/todayPlan";
+import { celebrate } from "./celebrate";
 
 async function todo(payload: Record<string, unknown>) {
   const r = await fetch("/api/todo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -15,7 +16,7 @@ async function todo(payload: Record<string, unknown>) {
 const BURST = ["var(--brand)", "var(--accent)", "var(--ok)", "var(--brand)", "var(--accent)", "var(--ok)", "var(--brand)", "var(--accent)"];
 
 function Tick({ done, live, onClick, disabled, label, accent, celebrate }: {
-  done: boolean; live?: boolean; onClick: () => void; disabled?: boolean; label: string; accent?: boolean; celebrate: number;
+  done: boolean; live?: boolean; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void; disabled?: boolean; label: string; accent?: boolean; celebrate: number;
 }) {
   return (
     <button type="button" disabled={disabled} onClick={onClick} aria-label={label} aria-pressed={done} title={done ? "আবার খোলো" : "শেষ হলে চাপো"}
@@ -44,16 +45,31 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
 
   // চাপলেই টিক বসে (সার্ভারের উত্তরের অপেক্ষা নেই); ব্যর্থ হলে আগের অবস্থায় ফেরে
   const [local, setLocal] = useState<Record<string, boolean>>({});
+  const [hidden, setHidden] = useState<number[]>([]);
+  // কাজ বাদ: সাথে সাথে সরাই, সার্ভার পেছনে; ব্যর্থ হলে ফিরিয়ে আনি
+  const remove = (id: number) => {
+    setHidden((h) => [...h, id]);
+    todo({ action: "delete", id }).then(() => start(() => router.refresh()))
+      .catch((e) => { setHidden((h) => h.filter((x) => x !== id)); setError(e instanceof Error ? e.message : "হলো না"); });
+  };
   const [party, setParty] = useState<Record<string, number>>({});
   const busy = useRef(new Set<string>());
   const isDone = (key: string, server: boolean) => local[key] ?? server;
-  const toggle = (key: string, id: number, server: boolean) => {
+  // এই টিকের পরে আজকের সব (ব্লক আর কাজ) শেষ হবে কিনা
+  const allDoneAfter = (key: string) => {
+    const items = [...blocks.filter((b) => b.todoId).map((b) => [`b${b.id}`, b.done] as const), ...tasks.filter((t) => !hidden.includes(t.id)).map((t) => [`t${t.id}`, t.done] as const)];
+    return items.length > 1 && items.every(([k, d]) => k === key || isDone(k, d));
+  };
+  const toggle = (key: string, id: number, server: boolean, e?: React.MouseEvent<HTMLButtonElement>) => {
     if (busy.current.has(key)) return;
     const next = !isDone(key, server);
     setLocal((m) => ({ ...m, [key]: next }));
     if (next) {
       setParty((m) => ({ ...m, [key]: (m[key] ?? 0) + 1 }));
-      try { navigator.vibrate?.(12); } catch {}
+      try { navigator.vibrate?.(allDoneAfter(key) ? [15, 60, 15] : 12); } catch {}
+      // টিকের জায়গা থেকে পুরো পর্দায় কনফেটি; এটাই আজকের শেষটা হলে বড় উৎসব
+      const r = e?.currentTarget.getBoundingClientRect();
+      celebrate(r ? r.left + r.width / 2 : innerWidth / 2, r ? r.top + r.height / 2 : innerHeight / 2, allDoneAfter(key));
     }
     busy.current.add(key);
     setError("");
@@ -89,7 +105,7 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
               <li key={b.id} className={`relative flex items-start gap-3 py-1.5 rounded-xl ${party[key] && done ? "done-row" : ""}`}
                 style={{ opacity: b.past && !b.live && !done ? 0.6 : 1 }}>
                 <Tick done={done} live={b.live} disabled={!b.todoId} celebrate={party[key] ?? 0} label={done ? `${b.title}: আবার খোলো` : `${b.title}: শেষ`}
-                  onClick={() => b.todoId && toggle(key, b.todoId, b.done)} />
+                  onClick={(e) => b.todoId && toggle(key, b.todoId, b.done, e)} />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs num muted">
                     {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
@@ -109,17 +125,17 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
         <div className={blocks.length ? "mt-4 pt-3 border-t" : ""} style={{ borderColor: "var(--line)" }}>
           {blocks.length > 0 && <p className="eyebrow mb-1">সময় ছাড়া কাজ</p>}
           <ul>
-            {tasks.map((t) => {
+            {tasks.filter((t) => !hidden.includes(t.id)).map((t) => {
               const key = `t${t.id}`, done = isDone(key, t.done);
               return (
               <li key={t.id} className={`group flex items-start gap-3 py-1.5 rounded-xl ${party[key] && done ? "done-row" : ""}`}>
                 <Tick done={done} accent={!!t.priority} celebrate={party[key] ?? 0} label={done ? `${t.task}: আবার খোলো` : `${t.task}: শেষ`}
-                  onClick={() => toggle(key, t.id, t.done)} />
+                  onClick={(e) => toggle(key, t.id, t.done, e)} />
                 <span className="flex-1 min-w-0 text-[15px] leading-snug pt-1 break-words"><span className="strike" data-done={done}>{t.task}</span></span>
                 {!done && t.priority ? <span className="chip chip-accent mt-0.5 hidden sm:inline-flex"><Flame size={12} /> জরুরি</span> : null}
                 {!done && t.overdue && <span className="chip chip-danger mt-0.5">{humanDate(t.due_date!)}</span>}
                 {canAdd && (
-                  <button type="button" onClick={() => act({ action: "delete", id: t.id })} disabled={pending} title="বাদ দাও" aria-label={`${t.task} বাদ`}
+                  <button type="button" onClick={() => remove(t.id)} title="বাদ দাও" aria-label={`${t.task} বাদ`}
                     className="btn-ghost rounded-lg sm:opacity-0 sm:group-hover:opacity-100"><Trash2 size={16} /></button>
                 )}
               </li>
