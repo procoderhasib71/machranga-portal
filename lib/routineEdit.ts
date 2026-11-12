@@ -46,3 +46,22 @@ export function planName(title: string): string {
   const i = title.indexOf(":");
   return (i > 0 ? title.slice(0, i) : title).trim();
 }
+
+const norm = (t: string) => t.toLowerCase().replace(/&/g, "and").replace(/[\s\p{P}]+/gu, "");
+
+/** একটা বারের সাপ্তাহিক ব্লকগুলো অন্য বারেও: নতুন কপি না বানিয়ে ব্লকের days এ বার যোগ (একই সময়ে একই কাজ আগে থাকলে সেই বার বাদ)।
+ *  ফেরত: কোন ব্লকের নতুন days কী হবে। 'daily' ব্লক এমনিতেই সব দিনে, তাই ছোঁয় না। */
+export function copyDayPlan(blocks: { id: number; days: string; title: string; start_time: string }[], from: string, to: string[]): { id: number; days: string }[] {
+  const on = (b: { days: string }, code: string) => b.days === "daily" || b.days.split(",").includes(code);
+  const targets = DAY_CODES.filter((c) => to.includes(c) && c !== from);
+  const out: { id: number; days: string }[] = [];
+  for (const b of blocks) {
+    if (b.days === "daily" || b.days === "once" || !b.days.split(",").includes(from)) continue;
+    const add = targets.filter((c) => !on(b, c) && !blocks.some((o) => o.id !== b.id && on(o, c) && o.start_time === b.start_time && norm(o.title) === norm(b.title)));
+    if (!add.length) continue;
+    const set = new Set([...b.days.split(","), ...add]);
+    const days = DAY_CODES.filter((c) => set.has(c));
+    out.push({ id: b.id, days: days.length === 7 ? "daily" : days.join(",") });
+  }
+  return out;
+}

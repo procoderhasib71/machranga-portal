@@ -65,7 +65,7 @@ function ReminderForm({ row, onClose }: { row?: ReminderRow; onClose: () => void
           <div className="flex flex-wrap gap-1.5">
             {DAY_ORDER.map((c) => (
               <button key={c} type="button" className="toggle" aria-pressed={days.includes(c)}
-                onClick={() => setDays(days.includes(c) ? days.filter((d) => d !== c) : [...days, c])}>{DAY_BN[c]}</button>
+                onClick={() => setDays((ds) => (ds.includes(c) ? ds.filter((d) => d !== c) : [...ds, c]))}>{DAY_BN[c]}</button>
             ))}
           </div>
         )}

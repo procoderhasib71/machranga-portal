@@ -1,6 +1,6 @@
 "use client";
 // রুটিন পেজের বদলানোর অংশ: ব্লক চাপলে ফর্ম খোলে (বদলাও/মুছো), নতুন ব্লক, আর পুরো পরিকল্পনা একসাথে মোছা
-import { BellOff, CalendarDays, Pencil, Plus, Repeat, Trash2, X } from "lucide-react";
+import { BellOff, CalendarDays, Copy, Pencil, Plus, Repeat, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
@@ -57,8 +57,8 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 
 type FormState = { title: string; kind: "date" | "weekly"; date: string; days: string[]; start_time: string; end_time: string; note: string; remind: boolean };
 
-function initial(b: RoutineBlock | undefined, today: string, kind: "date" | "weekly"): FormState {
-  if (!b) return { title: "", kind, date: today, days: [...DAY_ORDER], start_time: "20:00", end_time: "21:00", note: "", remind: true };
+function initial(b: RoutineBlock | undefined, today: string, kind: "date" | "weekly", presetDays?: string[]): FormState {
+  if (!b) return { title: "", kind, date: today, days: presetDays?.length ? presetDays : [...DAY_ORDER], start_time: "20:00", end_time: "21:00", note: "", remind: true };
   return {
     title: b.title, kind: b.date ? "date" : "weekly", date: b.date ?? today,
     days: b.date ? [...DAY_ORDER] : b.days === "daily" ? [...DAY_ORDER] : b.days.split(","),
@@ -66,12 +66,12 @@ function initial(b: RoutineBlock | undefined, today: string, kind: "date" | "wee
   };
 }
 
-function BlockForm({ block, today, kind = "date", onClose }: { block?: RoutineBlock; today: string; kind?: "date" | "weekly"; onClose: () => void }) {
-  const [f, setF] = useState(() => initial(block, today, kind));
+function BlockForm({ block, today, kind = "date", days, onClose }: { block?: RoutineBlock; today: string; kind?: "date" | "weekly"; days?: string[]; onClose: () => void }) {
+  const [f, setF] = useState(() => initial(block, today, kind, days));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { pending, error, run } = useAction(onClose);
   const set = (patch: Partial<FormState>) => setF((s) => ({ ...s, ...patch }));
-  const toggleDay = (c: string) => set({ days: f.days.includes(c) ? f.days.filter((d) => d !== c) : [...f.days, c] });
+  const toggleDay = (c: string) => setF((s) => ({ ...s, days: s.days.includes(c) ? s.days.filter((d) => d !== c) : [...s.days, c] }));
   const allDays = f.days.length === 7;
 
   const submit = (e: React.FormEvent) => {
@@ -183,12 +183,51 @@ export function EditableBlock({ b, today }: { b: RoutineBlock; today: string }) 
   );
 }
 
-export function NewBlockButton({ today, kind = "date", className = "btn-primary" }: { today: string; kind?: "date" | "weekly"; className?: string }) {
+export function NewBlockButton({ today, kind = "date", days, label = "নতুন ব্লক", className = "btn-primary" }: {
+  today: string; kind?: "date" | "weekly"; days?: string[]; label?: string; className?: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={className}><Plus size={18} /> নতুন ব্লক</button>
-      {open && <BlockForm today={today} kind={kind} onClose={() => setOpen(false)} />}
+      <button type="button" onClick={() => setOpen(true)} className={className}><Plus size={18} /> {label}</button>
+      {open && <BlockForm today={today} kind={kind} days={days} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/** সাপ্তাহিক প্ল্যানার: একটা বারের রুটিন অন্য বারগুলোতেও (এক চাপে পুরো সপ্তাহ) */
+export function CopyDayButton({ from, className = "btn-outline" }: { from: string; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const others = DAY_ORDER.filter((c) => c !== from);
+  const [to, setTo] = useState<string[]>(others.filter((c) => c !== "FRI"));
+  const { pending, error, run } = useAction(() => setOpen(false));
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={className}><Copy size={16} /> অন্য বারে কপি</button>
+      {open && (
+        <Sheet title={`${DAY_BN[from]}বারের রুটিন কপি`} onClose={() => setOpen(false)}>
+          <p className="text-sm muted mb-3">{DAY_BN[from]}বারের সব ব্লক নিচের বারগুলোতেও চলবে (প্রতিদিনের ব্লক এমনিতেই সব দিনে থাকে)।</p>
+          <div className="flex items-center justify-between mb-2">
+            <span className="label">কোন কোন বারে</span>
+            <button type="button" className="link text-xs" onClick={() => setTo(to.length === others.length ? [] : others)}>
+              {to.length === others.length ? "সব বাদ" : "সব বার"}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {others.map((c) => (
+              <button key={c} type="button" className="toggle" aria-pressed={to.includes(c)}
+                onClick={() => setTo((t) => (t.includes(c) ? t.filter((d) => d !== c) : [...t, c]))}>{DAY_BN[c]}</button>
+            ))}
+          </div>
+          {error && <p className="text-sm rounded-xl p-3 mt-3" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>{error}</p>}
+          <div className="flex items-center gap-2 mt-5">
+            <button type="button" onClick={() => setOpen(false)} className="btn-outline ml-auto">থাক</button>
+            <button type="button" disabled={pending || !to.length} onClick={() => run({ action: "copy_day", from, to })} className="btn-primary">
+              {pending ? "কপি হচ্ছে…" : `${to.length ? to.length.toLocaleString("bn-BD") : ""} বারে কপি করো`}
+            </button>
+          </div>
+        </Sheet>
+      )}
     </>
   );
 }

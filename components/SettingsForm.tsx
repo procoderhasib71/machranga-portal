@@ -61,7 +61,7 @@ export default function SettingsForm(p: Props) {
   return (
     <div>
       <div className="divide-y divide-[var(--line)]">
-        <Row label="🌅 সকালের কাজের লিস্ট" hint="খোলা কাজ থাকলে প্রতিদিন এই সময়ে পাঠাই">
+        <Row label="🌅 সকালের আজকের প্ল্যান" hint="আজকের রুটিন আর কাজ, প্রতিদিন এই সময়ে এক মেসেজে">
           <TimeToggle label="সকালের কাজের লিস্ট" value={state.todoDigest} defaultTime="08:00" onChange={(v) => save({ todoDigest: v })} />
         </Row>
         <Row label="📰 প্রতিদিনের খবর" hint="তোমার পছন্দের বিষয়ের ৫-৬টা খবর">

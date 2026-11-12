@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exec, one, query } from "@/lib/db";
 import { todayBD } from "@/lib/bn";
-import { MAX_BLOCKS, cleanBlock, planName } from "@/lib/routineEdit";
+import { DAY_CODES, MAX_BLOCKS, cleanBlock, copyDayPlan, planName } from "@/lib/routineEdit";
 import { syncMasterQuietly } from "@/lib/pomodoroSync";
 import { getMasterId } from "@/lib/session";
 
@@ -44,7 +44,17 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
     await exec(`DELETE FROM hermes_routine_blocks WHERE master_id = ? AND id IN (${ids.map(() => "?").join(",")})`, [mid, ...ids]);
     return null;
   }
-  return fail("action হবে add, update, delete বা delete_plan");
+  if (action === "copy_day") {
+    const from = String(body.from ?? "");
+    const to = Array.isArray(body.to) ? body.to.map(String) : [];
+    if (!DAY_CODES.includes(from) || !to.length) return fail("কোন বার থেকে কোন বারে, বেছে নাও");
+    const blocks = await query<{ id: number; days: string; title: string; start_time: string }>(
+      "SELECT id, days, title, start_time FROM hermes_routine_blocks WHERE master_id = ? AND date IS NULL", [mid]);
+    const changes = copyDayPlan(blocks, from, to);
+    for (const c of changes) await exec("UPDATE hermes_routine_blocks SET days = ? WHERE id = ? AND master_id = ?", [c.days, c.id, mid]);
+    return null;
+  }
+  return fail("action হবে add, update, delete, delete_plan বা copy_day");
 }
 
 export async function POST(req: NextRequest) {
