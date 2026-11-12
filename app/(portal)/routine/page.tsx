@@ -115,7 +115,7 @@ async function PlansView({ mid, today }: { mid: string; today: string }) {
     <div className="space-y-5">
       {active.length === 0 ? (
         <div className="card card-pad max-w-xl">
-          <Empty text="কোনো পরিকল্পনা নেই। উপরের বোতাম চাপো, অথবা বটকে বলো:" example="Davidson মেডিসিন ১ মাসে শেষ করার পরিকল্পনা বানাও" />
+          <Empty text="কোনো পরিকল্পনা নেই। উপরের বোতাম চাপো, অথবা বটকে বলো:" example="এইচএসসি পদার্থবিজ্ঞান ১ম পত্র ৩০ দিনে শেষ করার পরিকল্পনা বানাও" />
         </div>
       ) : (
         <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">

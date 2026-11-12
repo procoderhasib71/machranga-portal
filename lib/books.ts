@@ -1,43 +1,99 @@
-// নতুন পরিকল্পনায় বই বাছলে অধ্যায়ের তালিকা নিজে বসে (পরে যোগ-বাদ করা যায়)। সিস্টেম/অংশ ধরে প্রধান অধ্যায়, পড়ার সুবিধামতো ক্রমে।
-export type Book = { id: string; name: string; subject: string; chapters: string[] };
+// নতুন পরিকল্পনায় বিষয় বাছলে অধ্যায়ের তালিকা নিজে বসে (পরে যোগ-বাদ করা যায়)। এসএসসি আর এইচএসসি (এনসিটিবি) এর বিজ্ঞান বিভাগের মূল বিষয়।
+export type Book = { id: string; name: string; subject: string; level: "SSC" | "HSC"; chapters: string[] };
+
+export const LEVELS: { key: Book["level"]; label: string }[] = [
+  { key: "SSC", label: "এসএসসি (নবম–দশম)" },
+  { key: "HSC", label: "এইচএসসি (একাদশ–দ্বাদশ)" },
+];
 
 export const BOOKS: Book[] = [
   {
-    id: "davidson", name: "Davidson's Principles and Practice of Medicine", subject: "মেডিসিন",
+    id: "ssc-physics", level: "SSC", name: "পদার্থবিজ্ঞান", subject: "পদার্থবিজ্ঞান",
     chapters: [
-      "Clinical biochemistry & water-electrolyte balance", "Cardiology", "Respiratory medicine", "Nephrology & urology",
-      "Gastroenterology", "Hepatology", "Endocrinology", "Diabetes mellitus", "Haematology & transfusion medicine",
-      "Rheumatology & bone disease", "Neurology", "Stroke medicine", "Infectious disease", "HIV infection & AIDS",
-      "Clinical immunology", "Medical genetics", "Clinical pharmacology & poisoning", "Oncology & palliative care",
-      "Dermatology", "Medical psychiatry", "Acute medicine & critical illness", "Nutrition & ageing",
+      "ভৌত রাশি ও পরিমাপ", "গতি", "বল", "কাজ, ক্ষমতা ও শক্তি", "পদার্থের অবস্থা ও চাপ", "বস্তুর ওপর তাপের প্রভাব",
+      "তরঙ্গ ও শব্দ", "আলোর প্রতিফলন", "আলোর প্রতিসরণ", "স্থির বিদ্যুৎ", "চল বিদ্যুৎ", "বিদ্যুতের চুম্বকীয় ক্রিয়া",
+      "আধুনিক পদার্থবিজ্ঞান ও ইলেকট্রনিক্স", "জীবন বাঁচাতে পদার্থবিজ্ঞান", "মহাবিশ্বের গঠন",
     ],
   },
   {
-    id: "guyton", name: "Guyton & Hall Textbook of Medical Physiology", subject: "ফিজিওলজি",
+    id: "ssc-chemistry", level: "SSC", name: "রসায়ন", subject: "রসায়ন",
     chapters: [
-      "Cell & general physiology", "Membrane, nerve & muscle", "Heart", "Circulation", "Body fluids & kidneys",
-      "Blood cells, immunity & coagulation", "Respiration", "Nervous system: general & sensory", "Special senses",
-      "Motor & integrative neurophysiology", "Autonomic nervous system & brain", "Gastrointestinal physiology",
-      "Metabolism & temperature regulation", "Endocrinology", "Reproduction", "Sports, aviation & space physiology",
+      "রসায়নের ধারণা", "পদার্থের অবস্থা", "পদার্থের গঠন", "পর্যায় সারণি", "রাসায়নিক বন্ধন", "মৌলের ধারণা ও রাসায়নিক গণনা",
+      "রাসায়নিক বিক্রিয়া", "রসায়ন ও শক্তি", "এসিড-ক্ষারক সমতা", "খনিজ সম্পদ: ধাতু-অধাতু", "খনিজ সম্পদ: জীবাশ্ম", "আমাদের জীবনে রসায়ন",
     ],
   },
   {
-    id: "robbins", name: "Robbins Basic Pathology", subject: "প্যাথলজি",
+    id: "ssc-biology", level: "SSC", name: "জীববিজ্ঞান", subject: "জীববিজ্ঞান",
     chapters: [
-      "Cell injury & death", "Inflammation & repair", "Hemodynamic disorders & thrombosis", "Diseases of immunity",
-      "Neoplasia", "Genetic & pediatric diseases", "Environmental & nutritional diseases", "Blood vessels", "Heart",
-      "Hematopoietic & lymphoid systems", "Lung", "Kidney & its collecting system", "Oral cavity & GI tract",
-      "Liver & gallbladder", "Pancreas", "Male genital & lower urinary tract", "Female genital tract & breast",
-      "Endocrine system", "Bones, joints & soft tissue", "Peripheral nerves & muscles", "Central nervous system", "Skin",
+      "জীবন পাঠ", "জীবকোষ ও টিস্যু", "কোষ বিভাজন", "জীবনের জন্য খাদ্য ও পরিপাক", "জীবে পরিবহন", "গ্যাসীয় বিনিময়",
+      "মানবদেহের রক্ষা ব্যবস্থা", "রেচন প্রক্রিয়া", "দৃঢ়তা প্রদান ও চলন", "সমন্বয়", "জীবের প্রজনন", "জীবের বংশগতি ও বিবর্তন",
+      "জীবপ্রযুক্তি", "জীবের পরিবেশ",
     ],
   },
   {
-    id: "bailey", name: "Bailey & Love's Short Practice of Surgery", subject: "সার্জারি",
+    id: "ssc-math", level: "SSC", name: "গণিত", subject: "গণিত",
     chapters: [
-      "Metabolic response, shock & fluids", "Wounds, infection & tumours", "Trauma & ATLS", "Head, neck & thyroid",
-      "Breast", "Endocrine surgery", "Cardiothoracic surgery", "Arterial & venous disorders", "Hernia & abdominal wall",
-      "Oesophagus & stomach", "Small & large intestine", "Liver, gallbladder & pancreas", "Appendix, rectum & anus",
-      "Urology", "Orthopaedics & fractures", "Neurosurgery", "Plastic surgery & burns",
+      "বাস্তব সংখ্যা", "সেট ও ফাংশন", "বীজগাণিতিক রাশি", "সূচক ও লগারিদম", "এক চলকবিশিষ্ট সমীকরণ", "রেখা, কোণ ও ত্রিভুজ",
+      "ব্যবহারিক জ্যামিতি", "বৃত্ত", "ত্রিকোণমিতিক অনুপাত", "দূরত্ব ও উচ্চতা", "বীজগাণিতিক অনুপাত ও সমানুপাত",
+      "দুই চলকবিশিষ্ট সরল সহসমীকরণ", "সসীম ধারা", "অনুপাত, সদৃশতা ও প্রতিসমতা", "ক্ষেত্রফল সম্পর্কিত উপপাদ্য ও সম্পাদ্য", "পরিমিতি", "পরিসংখ্যান",
+    ],
+  },
+  {
+    id: "hsc-physics-1", level: "HSC", name: "পদার্থবিজ্ঞান ১ম পত্র", subject: "পদার্থবিজ্ঞান ১ম পত্র",
+    chapters: [
+      "ভৌত জগৎ ও পরিমাপ", "ভেক্টর", "নিউটনীয় বলবিদ্যা", "কাজ, শক্তি ও ক্ষমতা", "মহাকর্ষ ও অভিকর্ষ", "পদার্থের গাঠনিক ধর্ম",
+      "পর্যাবৃত্ত গতি", "তরঙ্গ", "আদর্শ গ্যাস ও গ্যাসের গতিতত্ত্ব",
+    ],
+  },
+  {
+    id: "hsc-physics-2", level: "HSC", name: "পদার্থবিজ্ঞান ২য় পত্র", subject: "পদার্থবিজ্ঞান ২য় পত্র",
+    chapters: [
+      "তাপগতিবিদ্যা", "স্থির তড়িৎ", "চল তড়িৎ", "তড়িৎ প্রবাহের চৌম্বক ক্রিয়া ও চুম্বকত্ব", "তড়িৎচুম্বকীয় আবেশ ও পরিবর্তী প্রবাহ",
+      "জ্যামিতিক আলোকবিজ্ঞান", "ভৌত আলোকবিজ্ঞান", "আধুনিক পদার্থবিজ্ঞানের সূচনা", "পরমাণুর মডেল ও নিউক্লিয়ার পদার্থবিজ্ঞান",
+      "সেমিকন্ডাক্টর ও ইলেকট্রনিক্স", "জ্যোতির্বিজ্ঞান",
+    ],
+  },
+  {
+    id: "hsc-chemistry-1", level: "HSC", name: "রসায়ন ১ম পত্র", subject: "রসায়ন ১ম পত্র",
+    chapters: ["ল্যাবরেটরির নিরাপদ ব্যবহার", "গুণগত রসায়ন", "মৌলের পর্যায়বৃত্ত ধর্ম ও রাসায়নিক বন্ধন", "রাসায়নিক পরিবর্তন", "কর্মমুখী রসায়ন"],
+  },
+  {
+    id: "hsc-chemistry-2", level: "HSC", name: "রসায়ন ২য় পত্র", subject: "রসায়ন ২য় পত্র",
+    chapters: ["পরিবেশ রসায়ন", "জৈব রসায়ন", "পরিমাণগত রসায়ন", "তড়িৎ রসায়ন", "অর্থনৈতিক রসায়ন"],
+  },
+  {
+    id: "hsc-biology-1", level: "HSC", name: "জীববিজ্ঞান ১ম পত্র (উদ্ভিদবিজ্ঞান)", subject: "জীববিজ্ঞান ১ম পত্র",
+    chapters: [
+      "কোষ ও এর গঠন", "কোষ বিভাজন", "কোষ রসায়ন", "অণুজীব", "শৈবাল ও ছত্রাক", "ব্রায়োফাইটা ও টেরিডোফাইটা",
+      "নগ্নবীজী ও গুপ্তবীজী উদ্ভিদ", "টিস্যু ও টিস্যুতন্ত্র", "উদ্ভিদ শারীরতত্ত্ব", "উদ্ভিদ প্রজনন", "জীবপ্রযুক্তি", "জীবের পরিবেশ, বিস্তার ও সংরক্ষণ",
+    ],
+  },
+  {
+    id: "hsc-biology-2", level: "HSC", name: "জীববিজ্ঞান ২য় পত্র (প্রাণিবিজ্ঞান)", subject: "জীববিজ্ঞান ২য় পত্র",
+    chapters: [
+      "প্রাণীর বিভিন্নতা ও শ্রেণিবিন্যাস", "প্রাণীর পরিচিতি", "পরিপাক ও শোষণ", "রক্ত ও সঞ্চালন", "শ্বসন ও শ্বাসক্রিয়া", "রেচন",
+      "চলন ও অঙ্গচালনা", "সমন্বয় ও নিয়ন্ত্রণ", "মানব জীবনের ধারাবাহিকতা", "মানবদেহের প্রতিরক্ষা", "জিনতত্ত্ব ও বিবর্তন", "প্রাণীর আচরণ",
+    ],
+  },
+  {
+    id: "hsc-math-1", level: "HSC", name: "উচ্চতর গণিত ১ম পত্র", subject: "উচ্চতর গণিত ১ম পত্র",
+    chapters: [
+      "ম্যাট্রিক্স ও নির্ণায়ক", "ভেক্টর", "সরলরেখা", "বৃত্ত", "বিন্যাস ও সমাবেশ", "ত্রিকোণমিতিক অনুপাত", "সংযুক্ত কোণ",
+      "ফাংশন ও ফাংশনের লেখচিত্র", "অন্তরীকরণ", "যোগজীকরণ",
+    ],
+  },
+  {
+    id: "hsc-math-2", level: "HSC", name: "উচ্চতর গণিত ২য় পত্র", subject: "উচ্চতর গণিত ২য় পত্র",
+    chapters: [
+      "বাস্তব সংখ্যা ও অসমতা", "যোগাশ্রয়ী প্রোগ্রাম", "জটিল সংখ্যা", "বহুপদী ও বহুপদী সমীকরণ", "দ্বিপদী বিস্তৃতি", "কণিক",
+      "বিপরীত ত্রিকোণমিতিক ফাংশন ও ত্রিকোণমিতিক সমীকরণ", "স্থিতিবিদ্যা", "সমতলে বস্তুকণার গতি", "বিস্তার পরিমাপ ও সম্ভাবনা",
+    ],
+  },
+  {
+    id: "hsc-ict", level: "HSC", name: "তথ্য ও যোগাযোগ প্রযুক্তি (ICT)", subject: "ICT",
+    chapters: [
+      "তথ্য ও যোগাযোগ প্রযুক্তি: বিশ্ব ও বাংলাদেশ প্রেক্ষিত", "কমিউনিকেশন সিস্টেমস ও কম্পিউটার নেটওয়ার্কিং", "সংখ্যা পদ্ধতি ও ডিজিটাল ডিভাইস",
+      "ওয়েব ডিজাইন পরিচিতি ও HTML", "প্রোগ্রামিং ভাষা", "ডেটাবেজ ম্যানেজমেন্ট সিস্টেম",
     ],
   },
 ];

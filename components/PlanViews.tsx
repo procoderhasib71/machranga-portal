@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, BookOpen, CalendarClock, Check, ChevronDown, Plus, 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { bnDigits, humanTime } from "@/lib/bn";
-import { BOOKS } from "@/lib/books";
+import { BOOKS, LEVELS } from "@/lib/books";
 import { buildExamPlan, groupDays } from "@/lib/examPlan";
 import { daysLeft, type PlanDay, type PlanSummary } from "@/lib/plans";
 import type { ChapterProgress, RoutineBlock } from "@/lib/data";
@@ -212,17 +212,21 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
       {open && (
         <Sheet title="নতুন পড়ার পরিকল্পনা" onClose={() => setOpen(false)}>
           <div className="space-y-4">
-            <label className="label">বই <span className="font-normal muted">(বাছলে অধ্যায় নিজে বসবে)</span>
+            <label className="label">বিষয় <span className="font-normal muted">(বাছলে অধ্যায় নিজে বসবে)</span>
               <select className="field" value={book} onChange={(e) => pickBook(e.target.value)}>
                 <option value="">নিজে অধ্যায় লিখব</option>
-                {BOOKS.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {LEVELS.map((l) => (
+                  <optgroup key={l.key} label={l.label}>
+                    {BOOKS.filter((b) => b.level === l.key).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </optgroup>
+                ))}
               </select>
             </label>
             <label className="label">পরিকল্পনার নাম
-              <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: মেডিসিন, ফিজিক্স ১ম পত্র" maxLength={80} />
+              <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: পদার্থবিজ্ঞান ১ম পত্র, এসএসসি গণিত" maxLength={80} />
             </label>
             <label className="label">অধ্যায় <span className="font-normal muted num">· প্রতি লাইনে একটা{count ? ` · ${bnDigits(count)}টা` : ""}</span>
-              <textarea className="field" rows={5} value={topics} onChange={(e) => setTopics(e.target.value)} placeholder={"Cardiology\nRespiratory\nGIT"} />
+              <textarea className="field" rows={5} value={topics} onChange={(e) => setTopics(e.target.value)} placeholder={"ভেক্টর\nনিউটনীয় বলবিদ্যা\nতরঙ্গ"} />
             </label>
             <div>
               <span className="label mb-1.5">কবে শেষ</span>
