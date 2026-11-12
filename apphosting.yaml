@@ -1,4 +1,28 @@
 # Firebase App Hosting এর সেটিংস।
 # গোপন মান (TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, SESSION_SECRET) বসানো থাকে App Hosting console এ, এই রিপোতে নয়।
+# নিচের NEXT_PUBLIC_* গুলো Firebase এর public config (যেকোনো ওয়েবসাইটের সোর্সে খোলা থাকে), গোপন নয়।
+# Shongi Lab অ্যাকাউন্ট (AdMCQ, Money, Pomodoro এর একই লগইন) এই project এর Firebase Auth এ।
 runConfig:
   minInstances: 0
+env:
+  - variable: NEXT_PUBLIC_TELEGRAM_BOT
+    value: "Machranga_ai_bot"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyD0WT1it31nGr9lnbmtRWT0v6GPBtwhqnA"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "machranga-eae85.firebaseapp.com"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "machranga-eae85"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "machranga-eae85.firebasestorage.app"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "590993832601"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:590993832601:web:d5bd1f3dc1b6c9d6bd5608"
+    availability: [BUILD, RUNTIME]

@@ -30,7 +30,7 @@ function page(code: string): string {
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code") ?? "";
-  if (!CODE.test(code)) return NextResponse.redirect(publicUrl(req, "/expired"));
+  if (!CODE.test(code)) return NextResponse.redirect(publicUrl(req, "/signin"));
   return new NextResponse(page(code), {
     headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
   });
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const form = await req.formData().catch(() => null);
   const code = String(form?.get("code") ?? "");
-  const expired = NextResponse.redirect(publicUrl(req, "/expired"), 303);
+  const expired = NextResponse.redirect(publicUrl(req, "/signin"), 303);
   if (!CODE.test(code)) return expired;
 
   try {

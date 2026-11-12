@@ -37,9 +37,9 @@ export async function getMasterId(): Promise<string | null> {
   }
 }
 
-/** পেজে: লগইন না থাকলে /expired এ পাঠিয়ে দেয় */
+/** পেজে: লগইন না থাকলে /signin এ পাঠিয়ে দেয় */
 export async function requireMasterId(): Promise<string> {
   const mid = await getMasterId();
-  if (!mid) redirect("/expired");
+  if (!mid) redirect("/signin");
   return mid;
 }
