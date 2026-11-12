@@ -18,5 +18,5 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   // পেজগুলোতেই (API, লগইন/লগআউট route আর স্থির ফাইল বাদ)
-  matcher: ["/((?!api|login|logout|_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|ico|jpg|webp|txt|xml)$).*)"],
+  matcher: ["/((?!api|login|logout|_next/static|_next/image|favicon.ico|sw.js|offline.html|manifest.webmanifest|.*\\.(?:png|svg|ico|jpg|webp|txt|xml|js|html|webmanifest)$).*)"],
 };

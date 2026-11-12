@@ -92,3 +92,16 @@ export function todaysBlocks(blocks: RoutineBlock[], dayCode: string, today: str
 export function isOverdue(due: string | null): boolean {
   return !!due && due < todayBD();
 }
+
+/** মাসের ক্যালেন্ডারের জন্য: সাপ্তাহিক সব ব্লক + এই সময়ের তারিখের ব্লক, আর সেসব দিনের কাজের অবস্থা */
+export async function getRoutineMonth(mid: string, from: string, to: string) {
+  const [blocks, todos] = await Promise.all([
+    query<RoutineBlock & { created_at: string | null }>(
+      "SELECT id, days, date, start_time, end_time, title, note, remind, created_at FROM hermes_routine_blocks " +
+      "WHERE master_id = ? AND (date IS NULL OR date BETWEEN ? AND ?)", [mid, from, to]),
+    query<{ routine_id: number; routine_date: string; status: string }>(
+      "SELECT routine_id, routine_date, status FROM hermes_todos WHERE master_id = ? AND routine_id IS NOT NULL AND routine_date BETWEEN ? AND ?",
+      [mid, from, to]),
+  ]);
+  return { blocks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])) };
+}

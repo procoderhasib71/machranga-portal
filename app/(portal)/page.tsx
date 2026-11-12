@@ -8,6 +8,7 @@ import { metricBn, valueText } from "@/lib/health";
 import { getNews, timeAgo, type NewsItem } from "@/lib/news";
 import { CardHead, Empty } from "@/components/PageHeader";
 import RoutineToday from "@/components/RoutineToday";
+import InstallApp from "@/components/InstallApp";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,8 @@ export default async function Dashboard() {
         <p className="eyebrow">{fullDateBn(now)}</p>
         <h1 className="text-[26px] sm:text-[32px] font-bold tracking-tight mt-1">{greeting(now)}, {name} 👋</h1>
       </div>
+
+      <InstallApp />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <Stat className="col-span-2 lg:col-span-1" label="আজকের রুটিন" value={blocks.length ? `${bnDigits(routineDone)}/${bnDigits(blocks.length)}` : "০"} sub={nextBlock ? `পরেরটা ${humanTime(nextBlock.start_time)}` : blocks.length ? "আজকের সব শেষ" : "কোনো ব্লক নেই"} delay={80} />

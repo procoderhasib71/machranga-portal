@@ -1,6 +1,9 @@
-import { CalendarClock, CalendarDays, Repeat } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarRange, List, Repeat } from "lucide-react";
+import Link from "next/link";
 import { requireMasterId } from "@/lib/session";
-import { getRoutine } from "@/lib/data";
+import { getRoutine, getRoutineMonth } from "@/lib/data";
+import { buildMonth, monthRange, validMonth } from "@/lib/calendar";
+import MonthCalendar from "@/components/MonthCalendar";
 import { DAY_BN, DAY_ORDER, bnDigits, humanDate, nowBD, todayBD } from "@/lib/bn";
 import { planName } from "@/lib/routineEdit";
 import PageHeader, { Empty } from "@/components/PageHeader";
@@ -8,8 +11,10 @@ import { EditableBlock, NewBlockButton, PlanChip } from "@/components/RoutineEdi
 
 export const dynamic = "force-dynamic";
 
-export default async function RoutinePage() {
+export default async function RoutinePage({ searchParams }: { searchParams: Promise<{ view?: string; m?: string; d?: string }> }) {
   const mid = await requireMasterId();
+  const sp = await searchParams;
+  const month = sp.view === "month" ? validMonth(sp.m, todayBD().slice(0, 7)) : null;
   const all = await getRoutine(mid);
   const blocks = all.filter((b) => !b.date);   // সাপ্তাহিক
   const dated = all.filter((b) => b.date);     // নির্দিষ্ট তারিখের (আজ থেকে সামনের)
@@ -34,6 +39,19 @@ export default async function RoutinePage() {
     <div className="space-y-8">
       <PageHeader title="রুটিন" subtitle={subtitle ? `${subtitle} · ব্লক চাপলে বদলানো বা মোছা যায়` : undefined} Icon={CalendarClock}
         action={<NewBlockButton today={today} className="btn-primary shrink-0 py-2.5" />} />
+
+      <nav className="seg max-w-xs -mt-4" aria-label="দেখার ধরন">
+        <Link href="/routine" aria-current={month ? undefined : "page"} className="text-center rounded-[0.625rem] py-2 text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+          style={month ? { color: "var(--muted)" } : { background: "var(--surface)", boxShadow: "var(--shadow)" }}><List size={15} /> তালিকা</Link>
+        <Link href="/routine?view=month" aria-current={month ? "page" : undefined} className="text-center rounded-[0.625rem] py-2 text-sm font-semibold inline-flex items-center justify-center gap-1.5"
+          style={month ? { background: "var(--surface)", boxShadow: "var(--shadow)" } : { color: "var(--muted)" }}><CalendarRange size={15} /> মাস</Link>
+      </nav>
+
+      {month ? await (async () => {
+        const { from, to } = monthRange(month);
+        const { blocks: mb, statuses } = await getRoutineMonth(mid, from, to);
+        return <MonthCalendar month={month} weeks={buildMonth(month, today, mb, statuses)} selected={sp.d ?? null} />;
+      })() : (<>
 
       {datedDays.length > 0 && (
         <section>
@@ -99,6 +117,7 @@ export default async function RoutinePage() {
           <p className="text-sm muted mt-5">প্রতিটা ব্লক তার দিনে কাজের লিস্টে আর Pomodoro তে চলে যায়। বদলাতে ব্লকটা চাপো, অথবা বটকে বলো।</p>
         </section>
       )}
+      </>)}
     </div>
   );
 }

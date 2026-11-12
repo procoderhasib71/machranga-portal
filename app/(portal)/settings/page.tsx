@@ -5,6 +5,7 @@ import { one } from "@/lib/db";
 import PageHeader, { CardHead } from "@/components/PageHeader";
 import SettingsForm from "@/components/SettingsForm";
 import ThemeToggle from "@/components/ThemeToggle";
+import InstallApp from "@/components/InstallApp";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function SettingsPage() {
         <CardHead title="দেখার ধরন" Icon={Palette} />
         <ThemeToggle />
         <p className="text-xs muted mt-2">অটো মানে তোমার ফোন বা কম্পিউটার যেটা ব্যবহার করে।</p>
+        <InstallApp variant="row" />
       </section>
 
       <section className="card card-pad rise" style={{ animationDelay: "60ms" }}>
