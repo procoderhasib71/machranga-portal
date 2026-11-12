@@ -35,7 +35,7 @@ export default function LinkWithBot({ code, firstTime, onRetry }: { code: string
     return (
       <div className="space-y-4 text-center">
         <p style={{ color: "var(--muted)" }}>কোডের মেয়াদ (১০ মিনিট) শেষ হয়ে গেছে।</p>
-        <button onClick={onRetry} className="btn-primary">নতুন কোড নাও</button>
+        <button onClick={onRetry} className="btn-primary btn-block">নতুন কোড নাও</button>
       </div>
     );
   }
@@ -47,7 +47,7 @@ export default function LinkWithBot({ code, firstTime, onRetry }: { code: string
           তোমার Shongi Lab অ্যাকাউন্ট এখনো মাছরাঙা বটের সাথে যুক্ত না। একবার যুক্ত করলেই হবে — এরপর থেকে শুধু লগইনেই ঢুকতে পারবে।
         </p>
       )}
-      <a href={tgLink} target="_blank" rel="noopener" className="btn-primary flex items-center justify-center gap-2">
+      <a href={tgLink} target="_blank" rel="noopener" className="btn-primary btn-block">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M21.9 4.3 18.6 20c-.2 1.1-.9 1.4-1.8.9l-5-3.7-2.4 2.3c-.3.3-.5.5-1 .5l.4-5.1 9.3-8.4c.4-.4-.1-.6-.6-.2L5.9 13.5l-4.9-1.5c-1.1-.3-1.1-1.1.2-1.6L20.4 3c.9-.3 1.7.2 1.5 1.3z"/></svg>
         Telegram-এ খুলে Start চাপো
       </a>

@@ -9,37 +9,40 @@ type Props = {
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
-      <div>
-        <div className="font-medium">{label}</div>
-        {hint && <div className="text-sm" style={{ color: "var(--muted)" }}>{hint}</div>}
+    <div className="flex items-center justify-between gap-4 py-3.5">
+      <div className="min-w-0">
+        <div className="font-medium text-[15px]">{label}</div>
+        {hint && <div className="text-xs muted mt-0.5">{hint}</div>}
       </div>
-      {children}
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }
 
-function TimeToggle({ value, defaultTime, onChange }: { value: string; defaultTime: string; onChange: (v: string) => void }) {
+/** ফোনের মতো চালু/বন্ধ সুইচ */
+function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <div className="flex items-center gap-2">
-      {value && <input type="time" value={value} onChange={(e) => e.target.value && onChange(e.target.value)}
-        className="bg-transparent border rounded-lg px-2 py-1 text-sm" style={{ borderColor: "var(--line)" }} />}
-      <button type="button" onClick={() => onChange(value ? "" : defaultTime)}
-        className="px-3 py-1 rounded-full text-sm font-medium"
-        style={value ? { background: "var(--teal-soft)", color: "var(--teal)" } : { background: "var(--line)", color: "var(--muted)" }}>
-        {value ? "চালু" : "বন্ধ"}
-      </button>
-    </div>
-  );
-}
-
-function OnOff({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button type="button" onClick={() => onChange(!value)} className="px-3 py-1 rounded-full text-sm font-medium"
-      style={value ? { background: "var(--teal-soft)", color: "var(--teal)" } : { background: "var(--line)", color: "var(--muted)" }}>
-      {value ? "চালু" : "বন্ধ"}
+    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
+      className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors"
+      style={{ background: on ? "var(--brand)" : "var(--line)" }}>
+      <span className="inline-block size-5 rounded-full bg-white shadow transition-transform"
+        style={{ transform: on ? "translateX(24px)" : "translateX(4px)" }} />
     </button>
   );
+}
+
+function TimeToggle({ value, defaultTime, onChange, label }: { value: string; defaultTime: string; onChange: (v: string) => void; label: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      {value && <input type="time" value={value} onChange={(e) => e.target.value && onChange(e.target.value)} aria-label={`${label}: সময়`}
+        className="bg-transparent border rounded-lg px-2 py-1 text-sm num" style={{ borderColor: "var(--line)" }} />}
+      <Switch on={!!value} onChange={(v) => onChange(v ? defaultTime : "")} label={label} />
+    </div>
+  );
+}
+
+function OnOff({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
+  return <Switch on={value} onChange={onChange} label={label} />;
 }
 
 export default function SettingsForm(p: Props) {
@@ -67,32 +70,37 @@ export default function SettingsForm(p: Props) {
   };
 
   return (
-    <div className="card p-5 divide-y" style={{ borderColor: "var(--line)" }}>
-      <Row label="🌅 সকালের কাজের লিস্ট" hint="খোলা কাজ থাকলে প্রতিদিন এই সময়ে পাঠাই">
-        <TimeToggle value={state.todoDigest} defaultTime="08:00" onChange={(v) => save({ todoDigest: v })} />
-      </Row>
-      <Row label="📰 প্রতিদিনের খবর" hint="তোমার পছন্দের বিষয়ের ৫-৬টা খবর">
-        <TimeToggle value={state.newsTime} defaultTime="08:30" onChange={(v) => save({ newsTime: v })} />
-      </Row>
-      {state.newsTime && (
-        <Row label="খবরের বিষয়" hint="কমা দিয়ে, যেমন: খেলা, চাকরি, প্রযুক্তি">
-          <input value={state.newsTopics} onChange={(e) => setState({ ...state, newsTopics: e.target.value })}
-            onBlur={() => save({ newsTopics: state.newsTopics })} placeholder="সব প্রধান খবর"
-            className="bg-transparent border rounded-lg px-2 py-1 text-sm w-48" style={{ borderColor: "var(--line)" }} />
+    <div>
+      <div className="divide-y divide-[var(--line)]">
+        <Row label="🌅 সকালের কাজের লিস্ট" hint="খোলা কাজ থাকলে প্রতিদিন এই সময়ে পাঠাই">
+          <TimeToggle label="সকালের কাজের লিস্ট" value={state.todoDigest} defaultTime="08:00" onChange={(v) => save({ todoDigest: v })} />
         </Row>
-      )}
-      <Row label="🌙 রাতের মন চেক-ইন" hint="রাতে একবার জিজ্ঞেস করি কেমন আছ">
-        <TimeToggle value={state.moodCheckin} defaultTime="21:30" onChange={(v) => save({ moodCheckin: v })} />
-      </Row>
-      <Row label="📊 সাপ্তাহিক রিপোর্ট" hint="শুক্রবার সকাল ৯টায়, চার্টসহ">
-        <OnOff value={state.weeklyReport} onChange={(v) => save({ weeklyReport: v })} />
-      </Row>
-      {p.moneyLinked && (
-        <Row label="💰 টাকার হিসাব" hint="রাত ১০টায় দিনের, শুক্রবারে সপ্তাহের">
-          <OnOff value={state.moneyDigest} onChange={(v) => save({ moneyDigest: v })} />
+        <Row label="📰 প্রতিদিনের খবর" hint="তোমার পছন্দের বিষয়ের ৫-৬টা খবর">
+          <TimeToggle label="প্রতিদিনের খবর" value={state.newsTime} defaultTime="08:30" onChange={(v) => save({ newsTime: v })} />
         </Row>
-      )}
-      <div className="pt-3 text-sm h-6" style={{ color: "var(--muted)" }}>{pending ? "সেভ হচ্ছে…" : msg}</div>
+        {state.newsTime && (
+          <div className="py-3.5">
+            <label className="block font-medium text-[15px]">খবরের বিষয়
+              <span className="block text-xs muted font-normal mt-0.5">কমা দিয়ে, যেমন: খেলা, চাকরি, প্রযুক্তি · ফাঁকা থাকলে সব প্রধান খবর</span>
+              <input value={state.newsTopics} onChange={(e) => setState({ ...state, newsTopics: e.target.value })}
+                onBlur={() => state.newsTopics !== p.newsTopics && save({ newsTopics: state.newsTopics })} placeholder="সব প্রধান খবর"
+                className="field text-sm" />
+            </label>
+          </div>
+        )}
+        <Row label="🌙 রাতের মন চেক-ইন" hint="রাতে একবার জিজ্ঞেস করি কেমন আছ">
+          <TimeToggle label="রাতের মন চেক-ইন" value={state.moodCheckin} defaultTime="21:30" onChange={(v) => save({ moodCheckin: v })} />
+        </Row>
+        <Row label="📊 সাপ্তাহিক রিপোর্ট" hint="শুক্রবার সকাল ৯টায়, চার্টসহ">
+          <OnOff label="সাপ্তাহিক রিপোর্ট" value={state.weeklyReport} onChange={(v) => save({ weeklyReport: v })} />
+        </Row>
+        {p.moneyLinked && (
+          <Row label="💰 টাকার হিসাব" hint="রাত ১০টায় দিনের, শুক্রবারে সপ্তাহের">
+            <OnOff label="টাকার হিসাব" value={state.moneyDigest} onChange={(v) => save({ moneyDigest: v })} />
+          </Row>
+        )}
+      </div>
+      <p className="pt-2 text-sm h-6 muted" aria-live="polite">{pending ? "সেভ হচ্ছে…" : msg}</p>
     </div>
   );
 }

@@ -57,6 +57,28 @@ export function humanDate(iso: string): string {
   return bnDigits(`${d.getDate()} ${MONTHS[d.getMonth()]}`);
 }
 
+const WEEKDAYS = ["রবিবার", "সোমবার", "মঙ্গলবার", "বুধবার", "বৃহস্পতিবার", "শুক্রবার", "শনিবার"];   // JS: রবি = 0
+
+/** 'বৃহস্পতিবার, ১২ নভেম্বর' */
+export function fullDateBn(d: Date = nowBD()): string {
+  return `${WEEKDAYS[d.getDay()]}, ${bnDigits(d.getDate())} ${MONTHS[d.getMonth()]}`;
+}
+
+/** সময় অনুযায়ী শুভেচ্ছা */
+export function greeting(d: Date = nowBD()): string {
+  const h = d.getHours();
+  if (h >= 5 && h < 12) return "সুপ্রভাত";
+  if (h >= 12 && h < 16) return "শুভ দুপুর";
+  if (h >= 16 && h < 18) return "শুভ বিকেল";
+  if (h >= 18 && h < 21) return "শুভ সন্ধ্যা";
+  return "শুভ রাত্রি";
+}
+
+/** এখনকার 'HH:MM' (বাংলাদেশ সময়) */
+export function nowHHMM(d: Date = nowBD()): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 /** '2026-11-10 21:30' → '১০ নভেম্বর রাত ৯:৩০' */
 export function humanDateTime(stamp: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(stamp ?? "");

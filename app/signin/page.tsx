@@ -3,7 +3,10 @@
 // নতুন অ্যাকাউন্ট আর পাসওয়ার্ড ভুলে গেলে AdMCQ এর লগইন পেজে (একই অ্যাকাউন্ট, SMS এর ব্যবস্থা ওখানেই)।
 import { GoogleAuthProvider, getRedirectResult, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, type User } from "firebase/auth";
 import { useEffect, useState } from "react";
+import { CalendarClock, GraduationCap, HeartPulse, ListChecks } from "lucide-react";
 import LinkWithBot from "@/components/LinkWithBot";
+import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import { auth, phoneEmail, toE164 } from "@/lib/firebase";
 
 const ACCOUNT_SITE = "https://app.admcq.com/login";
@@ -90,24 +93,53 @@ export default function SignInPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-4">
-      <div className="card max-w-md w-full p-7 sm:p-8 space-y-5">
-        <div className="text-center space-y-1">
-          <div className="text-5xl">🐦</div>
-          <h1 className="text-2xl font-bold">মাছরাঙা পোর্টাল</h1>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>তোমার কাজের লিস্ট, রুটিন, স্বাস্থ্য — সব এক জায়গায়</p>
+    <main className="min-h-screen grid lg:grid-cols-2">
+      {/* কম্পিউটারে বাঁ পাশে ব্র্যান্ডের প্যানেল */}
+      <aside className="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden"
+        style={{ background: "linear-gradient(150deg, #0e7c70 0%, #095249 100%)", color: "#fff" }}>
+        <div className="absolute -right-24 -bottom-24 size-96 rounded-full opacity-20" style={{ background: "var(--accent)" }} />
+        <div className="absolute -left-16 top-1/3 size-56 rounded-full opacity-10 bg-white" />
+        <div className="relative"><Logo size={40} onBrand /></div>
+        <div className="relative max-w-md">
+          <h2 className="text-4xl font-bold leading-tight tracking-tight">তোমার দিনটা,<br />এক জায়গায় গোছানো।</h2>
+          <ul className="mt-8 space-y-4 text-[15px]" style={{ color: "rgb(255 255 255 / 0.88)" }}>
+            {[
+              [ListChecks, "কাজের লিস্ট, বটের সাথে সাথে মেলে"],
+              [CalendarClock, "সাপ্তাহিক পড়ার রুটিন, সময়মতো মনে করানো"],
+              [HeartPulse, "প্রেশার, সুগার, ঘুম আর মনের চার্ট"],
+              [GraduationCap, "MCQ এর অগ্রগতি আর টানা পড়ার হিসাব"],
+            ].map(([Icon, text]) => {
+              const I = Icon as typeof ListChecks;
+              return (
+                <li key={text as string} className="flex items-center gap-3">
+                  <span className="inline-flex size-9 items-center justify-center rounded-xl" style={{ background: "rgb(255 255 255 / 0.15)" }}><I size={18} /></span>
+                  {text as string}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <p className="relative text-sm" style={{ color: "rgb(255 255 255 / 0.7)" }}>Shongi Lab · AdMCQ, Money আর Pomodoro এর একই অ্যাকাউন্ট</p>
+      </aside>
+
+      <div className="flex items-center justify-center p-4 sm:p-8">
+      <div className="max-w-md w-full space-y-5">
+        <div className="space-y-2">
+          <div className="lg:hidden mb-6"><Logo size={40} /></div>
+          <h1 className="text-[28px] font-bold tracking-tight">পোর্টালে ঢোকো</h1>
+          <p className="text-sm muted">তোমার কাজের লিস্ট, রুটিন, স্বাস্থ্য — সব এক জায়গায়</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl" style={{ background: "var(--line)" }}>
+        <div role="tablist" className="grid grid-cols-2 gap-1 p-1 rounded-xl" style={{ background: "var(--surface-2)" }}>
           {(["account", "telegram"] as const).map((t) => (
-            <button key={t} onClick={() => switchTab(t)} className="py-2 rounded-lg text-sm font-semibold"
-              style={tab === t ? { background: "var(--card)", color: "var(--teal)" } : { color: "var(--muted)" }}>
+            <button key={t} role="tab" aria-selected={tab === t} onClick={() => switchTab(t)} className="py-2.5 rounded-lg text-sm font-semibold transition-colors"
+              style={tab === t ? { background: "var(--surface)", color: "var(--brand)", boxShadow: "var(--shadow)" } : { color: "var(--muted)" }}>
               {t === "account" ? "Shongi Lab অ্যাকাউন্ট" : "Telegram দিয়ে"}
             </button>
           ))}
         </div>
 
-        {error && <p className="text-sm text-center rounded-xl p-3" style={{ background: "var(--orange-soft)", color: "var(--red)" }}>{error}</p>}
+        {error && <p className="text-sm text-center rounded-xl p-3" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>{error}</p>}
 
         {view.kind === "link" ? (
           <LinkWithBot code={view.code} firstTime={view.firstTime}
@@ -123,12 +155,12 @@ export default function SignInPage() {
                 <input className="field" type="password" autoComplete="current-password" placeholder="••••••"
                   value={password} onChange={(e) => setPassword(e.target.value)} required />
               </label>
-              <button type="submit" disabled={loading} className="btn-primary">{loading ? "অপেক্ষা করো…" : "লগইন"}</button>
+              <button type="submit" disabled={loading} className="btn-primary btn-block">{loading ? "অপেক্ষা করো…" : "লগইন"}</button>
             </form>
             <div className="flex items-center gap-3 text-xs" style={{ color: "var(--muted)" }}>
               <span className="flex-1 h-px" style={{ background: "var(--line)" }} /> অথবা <span className="flex-1 h-px" style={{ background: "var(--line)" }} />
             </div>
-            <button onClick={google} disabled={loading} className="btn-outline">
+            <button onClick={google} disabled={loading} className="btn-outline btn-block">
               <svg className="size-5" viewBox="0 0 24 24" aria-hidden>
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -145,6 +177,8 @@ export default function SignInPage() {
         ) : (
           <p className="text-center text-sm" style={{ color: "var(--muted)" }}>কোড আনছি…</p>
         )}
+        <div className="flex justify-center pt-2"><div className="w-56"><ThemeToggle /></div></div>
+      </div>
       </div>
     </main>
   );
