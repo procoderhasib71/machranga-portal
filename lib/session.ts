@@ -1,40 +1,13 @@
-// পাসওয়ার্ডহীন সেশন: বটের দেওয়া এক-বারের কোড → সই করা কুকি (৩০ দিন)
-import { SignJWT, jwtVerify } from "jose";
+// পাসওয়ার্ডহীন সেশন: বটের কোড বা Shongi Lab লগইন → সই করা কুকি (১৮০ দিন, ব্যবহার করলে নিজে থেকে বাড়ে; proxy.ts)
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { SESSION_NAME, readSession } from "./sessionToken";
 
-const COOKIE = "hermes_session";
-const DAYS = 30;
-
-function secret(): Uint8Array {
-  const s = process.env.SESSION_SECRET;
-  if (!s) throw new Error("SESSION_SECRET সেট করা নেই");
-  return new TextEncoder().encode(s);
-}
-
-export async function createSession(masterId: string): Promise<string> {
-  return new SignJWT({ mid: masterId })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(`${DAYS}d`)
-    .sign(secret());
-}
-
-export const SESSION_COOKIE = {
-  name: COOKIE,
-  options: { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/", maxAge: DAYS * 86400 },
-};
+export { createSession, SESSION_COOKIE } from "./sessionToken";
 
 /** লগইন থাকলে master_id, নইলে null */
 export async function getMasterId(): Promise<string | null> {
-  const token = (await cookies()).get(COOKIE)?.value;
-  if (!token) return null;
-  try {
-    const { payload } = await jwtVerify(token, secret());
-    return typeof payload.mid === "string" ? payload.mid : null;
-  } catch {
-    return null;
-  }
+  return (await readSession((await cookies()).get(SESSION_NAME)?.value))?.mid ?? null;
 }
 
 /** পেজে: লগইন না থাকলে /signin এ পাঠিয়ে দেয় */

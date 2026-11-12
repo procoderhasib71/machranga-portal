@@ -1,7 +1,7 @@
 "use client";
 // পোর্টালে ঢোকা: Shongi Lab অ্যাকাউন্ট (AdMCQ, Money, Pomodoro এর একই লগইন) অথবা সরাসরি Telegram বট দিয়ে।
 // নতুন অ্যাকাউন্ট আর পাসওয়ার্ড ভুলে গেলে AdMCQ এর লগইন পেজে (একই অ্যাকাউন্ট, SMS এর ব্যবস্থা ওখানেই)।
-import { GoogleAuthProvider, getRedirectResult, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, type User } from "firebase/auth";
+import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut, type User } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { CalendarClock, GraduationCap, HeartPulse, ListChecks } from "lucide-react";
 import LinkWithBot from "@/components/LinkWithBot";
@@ -37,8 +37,19 @@ export default function SignInPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("out")) signOut(auth).catch(() => {});
+    if (new URLSearchParams(window.location.search).get("out")) {
+      signOut(auth).catch(() => {});
+      return;
+    }
     getRedirectResult(auth).then((r) => r && finish(r.user)).catch((e) => setError(authError(e)));
+    // এই ফোন/ব্রাউজারে Shongi Lab এ আগেই লগইন থাকলে (কুকি হারালেও) আবার জিজ্ঞেস না করে ঢুকিয়ে দিই
+    const stop = onAuthStateChanged(auth, (user) => {
+      stop();
+      if (!user) return;
+      setLoading(true);
+      finish(user).catch(() => {}).finally(() => setLoading(false));
+    });
+    return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

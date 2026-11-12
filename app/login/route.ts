@@ -1,9 +1,10 @@
 // বটের পাঠানো এক-বারের কোড → কুকি সেট → ড্যাশবোর্ড। কোড একবারই চলে, ১৫ মিনিটের মধ্যে।
-// GET শুধু "ঢুকুন" বোতামের পেজ দেখায়, কোড খরচ হয় POST এ: Telegram/Discord লিংকের preview বানাতে
-// আগেই GET করে, তাতে কোড খরচ হলে ইউজার ট্যাপ করে "মেয়াদ শেষ" পেত।
+// GET শুধু "ঢুকুন" পেজ দেখায়, কোড খরচ হয় POST এ: Telegram/Discord লিংকের preview বানাতে আগেই GET করে,
+// তাতে কোড খরচ হলে ইউজার ট্যাপ করে "মেয়াদ শেষ" পেত। পেজটা নিজেই JS দিয়ে জমা দেয় (preview JS চালায় না),
+// আর আগে থেকেই একই অ্যাকাউন্টে লগইন থাকলে সোজা ড্যাশবোর্ড।
 import { NextRequest, NextResponse } from "next/server";
 import { exec, one } from "@/lib/db";
-import { createSession, SESSION_COOKIE } from "@/lib/session";
+import { createSession, readSession, SESSION_COOKIE } from "@/lib/sessionToken";
 import { publicUrl } from "@/lib/url";
 
 const CODE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -25,12 +26,17 @@ function page(code: string): string {
   <p>তোমার কাজের লিস্ট, রুটিন, স্বাস্থ্য — সব এক জায়গায়।</p>
   <input type="hidden" name="code" value="${code}">
   <button type="submit">ঢুকুন →</button>
-</form></body></html>`;
+</form><script>document.forms[0].querySelector("button").textContent="ঢুকছি…";document.forms[0].submit();</script></body></html>`;
 }
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code") ?? "";
   if (!CODE.test(code)) return NextResponse.redirect(publicUrl(req, "/signin"));
+  const session = await readSession(req.cookies.get(SESSION_COOKIE.name)?.value);
+  if (session) {
+    const row = await one<{ master_id: string }>("SELECT master_id FROM hermes_portal_codes WHERE code = ?", [code]).catch(() => null);
+    if (!row || row.master_id === session.mid) return NextResponse.redirect(publicUrl(req, "/"));
+  }
   return new NextResponse(page(code), {
     headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
   });
