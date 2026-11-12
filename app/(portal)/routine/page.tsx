@@ -75,7 +75,7 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
             </div>
           ) : (
             <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-              {allPlans.filter((p) => !p.finished).map((p) => <PlanDetail key={p.key} plan={p} today={today} />)}
+              {allPlans.filter((p) => !p.finished).map((p) => <PlanDetail key={p.key} plan={p} today={today} progress={planData.progress} />)}
             </ul>
           )}
           {allPlans.some((p) => p.finished) && (

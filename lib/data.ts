@@ -120,8 +120,39 @@ export async function getPlanBlocks(mid: string) {
     query<{ routine_id: number; routine_date: string; status: string }>(
       "SELECT routine_id, routine_date, status FROM hermes_todos WHERE master_id = ? AND routine_id IS NOT NULL AND routine_date >= date('now', '-60 days')", [mid]),
   ]);
-  return { plans, blocks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])) };
+  const [revs, chapters] = await Promise.all([
+    query<{ plan_id: number; topic: string; step: number; due_date: string; status: string | null; session_id: number | null }>(
+      "SELECT v.plan_id, v.topic, v.step, v.due_date, t.status, v.session_id FROM hermes_revisions v LEFT JOIN hermes_todos t ON t.id = v.todo_id " +
+      "WHERE v.master_id = ? ORDER BY v.step", [mid]),
+    query<{ plan_id: number; topic: string; done_on: string; session_id: number | null }>(
+      "SELECT plan_id, topic, done_on, session_id FROM hermes_chapter_done WHERE master_id = ?", [mid]),
+  ]);
+  const sessions = [...new Set([...revs, ...chapters].map((r) => r.session_id).filter((x): x is number => !!x))];
+  const scores = new Map<number, { correct: number; total: number }>();
+  if (sessions.length) {
+    const rows = await query<{ session_id: number; correct: number; total: number }>(
+      `SELECT session_id, SUM(is_correct) AS correct, COUNT(*) AS total FROM hermes_mcq_attempts WHERE session_id IN (${sessions.map(() => "?").join(",")}) GROUP BY session_id`,
+      sessions);
+    for (const r of rows) scores.set(Number(r.session_id), { correct: Number(r.correct ?? 0), total: Number(r.total) });
+  }
+  const progress: Record<string, ChapterProgress> = {};
+  const key = (p: number, t: string) => `${p}|${t}`;
+  for (const c of chapters) {
+    progress[key(c.plan_id, c.topic)] = { doneOn: c.done_on, score: c.session_id ? scores.get(c.session_id) ?? null : null, revisions: [] };
+  }
+  for (const v of revs) {
+    const k = key(v.plan_id, v.topic);
+    progress[k] ??= { doneOn: null, score: null, revisions: [] };
+    progress[k].revisions.push({ step: v.step, due: v.due_date, done: v.status === "done", score: v.session_id ? scores.get(v.session_id) ?? null : null });
+  }
+  return { plans, blocks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])), progress };
 }
+
+export type ChapterProgress = {
+  doneOn: string | null;
+  score: { correct: number; total: number } | null;
+  revisions: { step: number; due: string; done: boolean; score: { correct: number; total: number } | null }[];
+};
 
 /** "আজ ছুটি": এই দিনগুলোতে সাপ্তাহিক রুটিন চলে না */
 export async function getDaysOff(mid: string, from: string, to: string): Promise<Set<string>> {

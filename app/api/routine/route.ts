@@ -59,6 +59,9 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
   if (action === "delete_plan" && body.plan_id) {
     // পুরো পরিকল্পনা: তার সব দিন আর plan নিজে
     const pid = Number(body.plan_id);
+    await exec("UPDATE hermes_todos SET status = 'deleted' WHERE master_id = ? AND status = 'open' AND id IN (SELECT todo_id FROM hermes_revisions WHERE plan_id = ?)", [mid, pid]);
+    await exec("DELETE FROM hermes_revisions WHERE master_id = ? AND plan_id = ?", [mid, pid]);
+    await exec("DELETE FROM hermes_chapter_done WHERE master_id = ? AND plan_id = ?", [mid, pid]);
     await exec("DELETE FROM hermes_routine_blocks WHERE master_id = ? AND plan_id = ?", [mid, pid]);
     await exec("DELETE FROM hermes_plans WHERE master_id = ? AND id = ?", [mid, pid]);
     return null;

@@ -8,7 +8,7 @@ import { bnDigits, humanTime } from "@/lib/bn";
 import { BOOKS } from "@/lib/books";
 import { buildExamPlan, groupDays } from "@/lib/examPlan";
 import { daysLeft, type PlanDay, type PlanSummary } from "@/lib/plans";
-import type { RoutineBlock } from "@/lib/data";
+import type { ChapterProgress, RoutineBlock } from "@/lib/data";
 import { BlockForm, Sheet, call } from "./RoutineEditor";
 
 const MONTHS = ["জানু", "ফেব্রু", "মার্চ", "এপ্রি", "মে", "জুন", "জুলাই", "আগ", "সেপ্টে", "অক্টো", "নভে", "ডিসে"];
@@ -32,6 +32,24 @@ function useApi() {
     try { await call(payload); after?.(); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "হলো না"); }
   });
   return { pending, error, run };
+}
+
+const STEP_BN = ["", "১ম", "২য়", "৩য়"];
+const baseTopic = (t: string) => t.replace(/\s*\([০-৯0-9]+\/[০-৯0-9]+\)\s*$/, "").trim();
+
+/** অধ্যায় শেষ হলে: রিভিশনের অবস্থা আর MCQ স্কোর */
+function ChapterLine({ p, today }: { p: ChapterProgress; today: string }) {
+  const sc = (s: { correct: number; total: number } | null) => (s ? `📝 ${bnDigits(s.correct)}/${bnDigits(s.total)}` : "");
+  return (
+    <div className="ml-[5.5rem] -mt-0.5 mb-1 flex flex-wrap gap-1.5 text-[11px]">
+      {p.score && <span className="chip chip-muted">{sc(p.score)}</span>}
+      {p.revisions.map((r) => (
+        <span key={r.step} className={`chip ${r.done ? "" : r.due < today ? "chip-danger" : "chip-muted"}`}>
+          🔁 {STEP_BN[r.step]} {r.done ? "✓" : dm(r.due)}{r.score ? ` · ${sc(r.score)}` : ""}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function DayRow({ d, i, today, prev, next }: { d: PlanDay; i: number; today: string; prev?: PlanDay; next?: PlanDay }) {
@@ -61,7 +79,7 @@ function DayRow({ d, i, today, prev, next }: { d: PlanDay; i: number; today: str
 }
 
 /** একটা plan এর বিস্তারিত */
-export function PlanDetail({ plan, today }: { plan: PlanSummary; today: string }) {
+export function PlanDetail({ plan, today, progress = {} }: { plan: PlanSummary; today: string; progress?: Record<string, ChapterProgress> }) {
   const [all, setAll] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const { pending, error, run } = useApi();
@@ -115,7 +133,15 @@ export function PlanDetail({ plan, today }: { plan: PlanSummary; today: string }
       <ol className="mt-4">
         {shown.map((d) => {
           const i = plan.days.indexOf(d);
-          return <DayRow key={d.block.id} d={d} i={i} today={today} prev={plan.days[i - 1]} next={plan.days[i + 1]} />;
+          // অধ্যায়ের শেষ দিনটার নিচেই (অদলবদলে একই অধ্যায় ছড়িয়ে থাকলেও একবার)
+          const last = plan.days.findLastIndex((x) => baseTopic(x.topic) === baseTopic(d.topic));
+          const p = plan.id && i === last ? progress[`${plan.id}|${baseTopic(d.topic)}`] : undefined;
+          return (
+            <li key={d.block.id} className="list-none">
+              <ol><DayRow d={d} i={i} today={today} prev={plan.days[i - 1]} next={plan.days[i + 1]} /></ol>
+              {p && <ChapterLine p={p} today={today} />}
+            </li>
+          );
         })}
       </ol>
       {plan.days.length > shown.length && (
