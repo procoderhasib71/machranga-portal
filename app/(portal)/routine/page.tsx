@@ -1,16 +1,16 @@
 import { CalendarClock, CalendarDays, CalendarRange, List, Repeat, Sun } from "lucide-react";
 import Link from "next/link";
 import { requireMasterId } from "@/lib/session";
-import { getRoutine, getRoutineMonth, getTodos, todaysBlocks } from "@/lib/data";
+import { getPlanBlocks, getRoutine, getRoutineMonth, getTodos, todaysBlocks } from "@/lib/data";
+import { buildPlans } from "@/lib/plans";
 import { buildToday, laterTasks } from "@/lib/todayPlan";
 import { syncMasterQuietly } from "@/lib/pomodoroSync";
 import TodayPlan from "@/components/TodayPlan";
 import { buildMonth, monthRange, validMonth } from "@/lib/calendar";
 import MonthCalendar from "@/components/MonthCalendar";
 import { DAY_BN, DAY_ORDER, bnDigits, fullDateBn, humanDate, nowBD, nowHHMM, todayBD } from "@/lib/bn";
-import { planName } from "@/lib/routineEdit";
 import PageHeader, { Empty } from "@/components/PageHeader";
-import { EditableBlock, NewBlockButton, PlanChip } from "@/components/RoutineEditor";
+import { EditableBlock, NewBlockButton, PlanCard } from "@/components/RoutineEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   const month = sp.view === "month" ? validMonth(sp.m, todayBD().slice(0, 7)) : null;
   await syncMasterQuietly(mid);   // রুটিনের আজকের কাজ আর Pomodoro তে যোগ করা কাজ আগে মিলিয়ে নিই
-  const [all, todos] = await Promise.all([getRoutine(mid), getTodos(mid)]);
+  const [all, todos, planData] = await Promise.all([getRoutine(mid), getTodos(mid), getPlanBlocks(mid)]);
   const blocks = all.filter((b) => !b.date);   // সাপ্তাহিক
   const dated = all.filter((b) => b.date);     // নির্দিষ্ট তারিখের (আজ থেকে সামনের)
   const today = todayBD();
@@ -35,8 +35,7 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
   const later = laterTasks(todos.open, today);
   const datedDays = [...new Set([...dated.map((b) => b.date!).filter((d) => d > today), ...later.keys()])].sort()
     .map((date) => ({ date, rows: dated.filter((b) => b.date === date), tasks: later.get(date) ?? [] }));
-  const plans = [...dated.reduce((m, b) => m.set(planName(b.title), (m.get(planName(b.title)) ?? 0) + 1), new Map<string, number>())]
-    .filter(([, n]) => n > 1);
+  const plans = buildPlans(planData.blocks, planData.statuses, today);
 
   const subtitle = [
     blocks.length ? `সপ্তাহে ${bnDigits(blocks.length)}টা ব্লক` : "",
@@ -69,11 +68,11 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
         <TodayPlan blocks={now.blocks} tasks={now.tasks} today={today} canAdd />
       </section>
 
-      {datedDays.length > 0 && (
+      {(datedDays.length > 0 || plans.length > 0) && (
         <section>
           <h2 className="font-semibold mb-3 flex items-center gap-2"><CalendarDays size={18} style={{ color: "var(--brand)" }} /> সামনের দিনগুলো</h2>
           {plans.length > 0 && (
-            <ul className="flex flex-wrap gap-2 mb-3">{plans.map(([name, n]) => <PlanChip key={name} name={name} count={n} />)}</ul>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">{plans.map((p) => <PlanCard key={p.name} plan={p} today={today} />)}</ul>
           )}
           <ol className="space-y-3">
             {datedDays.map((d, i) => {

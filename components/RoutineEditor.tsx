@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { DAY_BN, DAY_ORDER, bnDigits, humanTime } from "@/lib/bn";
 import type { RoutineBlock } from "@/lib/data";
+import type { PlanDayStatus, PlanSummary } from "@/lib/plans";
 import Switch from "./Switch";
 
 async function call(payload: Record<string, unknown>) {
@@ -192,27 +193,68 @@ export function NewBlockButton({ today, kind = "date", className = "btn-primary"
   );
 }
 
-/** একই নামের তারিখের পরিকল্পনা ("ভূগোল ২য় অধ্যায়: দিন ১…৫") একসাথে মোছা */
-export function PlanChip({ name, count }: { name: string; count: number }) {
+const MONTHS_SHORT = ["জানু", "ফেব্রু", "মার্চ", "এপ্রি", "মে", "জুন", "জুলাই", "আগ", "সেপ্টে", "অক্টো", "নভে", "ডিসে"];
+const DAY_TONE: Record<PlanDayStatus, { bg: string; fg: string; border: string; label: string }> = {
+  done: { bg: "var(--ok)", fg: "#fff", border: "var(--ok)", label: "শেষ" },
+  missed: { bg: "var(--danger-soft)", fg: "var(--danger)", border: "transparent", label: "মিস" },
+  today: { bg: "var(--brand-soft)", fg: "var(--brand)", border: "var(--brand)", label: "আজ" },
+  upcoming: { bg: "var(--surface-2)", fg: "var(--muted)", border: "transparent", label: "সামনে" },
+};
+const dm = (iso: string) => ({ d: Number(iso.slice(8)), m: Number(iso.slice(5, 7)) - 1 });
+
+/** "১৩ – ১৬ নভে" বা মাস আলাদা হলে "২৯ অক্টো – ৩ নভে" */
+function rangeBn(from: string, to: string): string {
+  const a = dm(from), b = dm(to);
+  return a.m === b.m ? `${bnDigits(a.d)} – ${bnDigits(b.d)} ${MONTHS_SHORT[b.m]}` : `${bnDigits(a.d)} ${MONTHS_SHORT[a.m]} – ${bnDigits(b.d)} ${MONTHS_SHORT[b.m]}`;
+}
+
+/** তারিখের পরিকল্পনা ("কার্ডিওলজি: দিন ১…৪"): কবে থেকে কবে, প্রতিটা দিনের অবস্থা, আর একসাথে মোছা */
+export function PlanCard({ plan, today }: { plan: PlanSummary; today: string }) {
   const [confirm, setConfirm] = useState(false);
   const { pending, error, run } = useAction(() => setConfirm(false));
+  const total = plan.days.length;
+  const tomorrow = new Date(Date.parse(`${today}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+  const next = !plan.next ? "সব দিন পেরিয়েছে" : plan.next === today ? "আজ পড়ার দিন" : plan.next === tomorrow ? "পরেরটা কাল" : `পরেরটা ${bnDigits(dm(plan.next).d)} ${MONTHS_SHORT[dm(plan.next).m]}`;
   return (
-    <li className="flex items-center gap-2 rounded-xl pl-3 pr-1.5 py-1.5" style={{ background: "var(--surface-2)" }}>
-      <span className="text-sm font-medium truncate">{name}</span>
-      <span className="chip chip-muted num text-xs">{bnDigits(count)} দিন</span>
-      {confirm ? (
-        <span className="flex items-center gap-1 ml-auto">
-          <button type="button" disabled={pending} onClick={() => run({ action: "delete_plan", plan: name })} className="btn-danger text-xs py-1.5 px-2.5 rounded-lg">
-            সব মুছো
+    <li className="card p-4 rise">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold leading-snug break-words">{plan.name}</p>
+          <p className="text-sm muted num mt-0.5">{rangeBn(plan.from, plan.to)} · {bnDigits(total)} দিন</p>
+        </div>
+        {confirm ? (
+          <span className="flex items-center gap-1 shrink-0">
+            <button type="button" disabled={pending} onClick={() => run({ action: "delete_plan", plan: plan.name })} className="btn-danger text-xs py-1.5 px-2.5 rounded-lg">সব মুছো</button>
+            <button type="button" onClick={() => setConfirm(false)} className="btn-ghost rounded-lg" aria-label="থাক"><X size={15} /></button>
+          </span>
+        ) : (
+          <button type="button" onClick={() => setConfirm(true)} className="btn-ghost rounded-lg shrink-0 -mr-1 -mt-1" title="পুরো পরিকল্পনা মুছো" aria-label={`${plan.name} মুছো`}>
+            <Trash2 size={16} />
           </button>
-          <button type="button" onClick={() => setConfirm(false)} className="btn-ghost text-xs rounded-lg" aria-label="থাক"><X size={14} /></button>
-        </span>
-      ) : (
-        <button type="button" onClick={() => setConfirm(true)} className="btn-ghost rounded-lg ml-auto" title="পুরো পরিকল্পনা মুছো" aria-label={`${name} মুছো`}>
-          <Trash2 size={15} />
-        </button>
-      )}
-      {error && <span className="text-xs" style={{ color: "var(--danger)" }}>{error}</span>}
+        )}
+      </div>
+
+      <ol className="flex flex-wrap gap-1.5 mt-3" aria-label="প্রতিটা দিনের অবস্থা">
+        {plan.days.map((d, i) => {
+          const tone = DAY_TONE[d.status];
+          return (
+            <li key={d.date} title={`দিন ${i + 1} · ${tone.label}`}
+              className="w-9 rounded-lg py-1 text-center leading-none num"
+              style={{ background: tone.bg, color: tone.fg, boxShadow: `inset 0 0 0 1.5px ${tone.border}` }}>
+              <span className="block text-[13px] font-semibold">{bnDigits(dm(d.date).d)}</span>
+              <span className="block text-[9px] mt-0.5 opacity-80">{MONTHS_SHORT[dm(d.date).m]}</span>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="flex items-center gap-3 mt-3">
+        <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
+          <div className="h-full rounded-full" style={{ width: `${Math.round((plan.done / total) * 100)}%`, background: "var(--ok)" }} />
+        </div>
+        <span className="text-xs muted num shrink-0">{bnDigits(plan.done)}/{bnDigits(total)} দিন শেষ · {next}</span>
+      </div>
+      {error && <p className="text-xs mt-2" style={{ color: "var(--danger)" }}>{error}</p>}
     </li>
   );
 }

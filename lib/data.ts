@@ -108,3 +108,14 @@ export async function getRoutineMonth(mid: string, from: string, to: string) {
     [mid, from, to]);
   return { blocks, tasks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])) };
 }
+
+/** পরিকল্পনার সারাংশের জন্য: গত ৬০ দিন থেকে সামনের তারিখের ব্লক আর সেসব দিনের কাজের অবস্থা */
+export async function getPlanBlocks(mid: string) {
+  const [blocks, todos] = await Promise.all([
+    query<{ id: number; date: string; title: string }>(
+      "SELECT id, date, title FROM hermes_routine_blocks WHERE master_id = ? AND date IS NOT NULL AND date >= date('now', '-60 days')", [mid]),
+    query<{ routine_id: number; routine_date: string; status: string }>(
+      "SELECT routine_id, routine_date, status FROM hermes_todos WHERE master_id = ? AND routine_id IS NOT NULL AND routine_date >= date('now', '-60 days')", [mid]),
+  ]);
+  return { blocks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])) };
+}
