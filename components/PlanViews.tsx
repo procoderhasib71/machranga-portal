@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, BookOpen, CalendarClock, Check, ChevronDown, Plus, 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { bnDigits, humanTime } from "@/lib/bn";
-import { BOOKS, LEVELS } from "@/lib/books";
+import { BOOKS, GROUPS, LEVELS } from "@/lib/books";
 import { buildExamPlan, groupDays } from "@/lib/examPlan";
 import { daysLeft, type PlanDay, type PlanSummary } from "@/lib/plans";
 import type { ChapterProgress, RoutineBlock } from "@/lib/data";
@@ -215,9 +215,9 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
             <label className="label">বিষয় <span className="font-normal muted">(বাছলে অধ্যায় নিজে বসবে)</span>
               <select className="field" value={book} onChange={(e) => pickBook(e.target.value)}>
                 <option value="">নিজে অধ্যায় লিখব</option>
-                {LEVELS.map((l) => (
-                  <optgroup key={l.key} label={l.label}>
-                    {BOOKS.filter((b) => b.level === l.key).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {LEVELS.flatMap((l) => GROUPS.map((g) => ({ l, g, items: BOOKS.filter((b) => b.level === l.key && b.group === g) })).filter((x) => x.items.length)).map(({ l, g, items }) => (
+                  <optgroup key={`${l.key}-${g}`} label={`${l.key} · ${g}`}>
+                    {items.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </optgroup>
                 ))}
               </select>
