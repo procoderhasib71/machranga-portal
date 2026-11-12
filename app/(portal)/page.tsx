@@ -11,6 +11,7 @@ import TodayPlan from "@/components/TodayPlan";
 import { buildToday } from "@/lib/todayPlan";
 import { syncMasterQuietly } from "@/lib/pomodoroSync";
 import InstallApp from "@/components/InstallApp";
+import Reminders, { AddReminderButton } from "@/components/Reminders";
 
 export const dynamic = "force-dynamic";
 
@@ -86,19 +87,14 @@ export default async function Dashboard() {
         </section>
 
         <section className="card card-pad lg:col-span-2 rise" style={{ animationDelay: "240ms" }}>
-          <CardHead title="সামনের রিমাইন্ডার" Icon={Bell} accent />
+          <CardHead title="সামনের রিমাইন্ডার" Icon={Bell} accent action={<AddReminderButton />} />
           {reminders.length === 0 ? (
-            <Empty text="কোনো রিমাইন্ডার নেই। বটকে বলো:" example="কাল সকাল ৭টায় পড়তে বসার কথা মনে করাস" />
+            <Empty text="কোনো রিমাইন্ডার নেই। উপরের “নতুন” চাপো, অথবা বটকে বলো:" example="কাল সকাল ৭টায় পড়তে বসার কথা মনে করাস" />
           ) : (
-            <ul className="space-y-2.5">
-              {reminders.slice(0, 5).map((r) => (
-                <li key={r.id} className="flex items-center gap-3">
-                  <span className="chip chip-accent num shrink-0">{humanDateTime(r.trigger_time)}</span>
-                  <span className="flex-1 min-w-0 truncate">{r.task}</span>
-                  {r.repeat_rule ? <span className="text-xs faint shrink-0">🔁</span> : null}
-                </li>
-              ))}
-            </ul>
+            <>
+              <Reminders rows={reminders.slice(0, 8)} />
+              {reminders.length > 8 && <p className="text-xs muted mt-2">…আরও {bnDigits(reminders.length - 8)}টা</p>}
+            </>
           )}
         </section>
 
