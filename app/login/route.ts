@@ -2,10 +2,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exec, one } from "@/lib/db";
 import { createSession, SESSION_COOKIE } from "@/lib/session";
+import { publicUrl } from "@/lib/url";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code") ?? "";
-  const expired = NextResponse.redirect(new URL("/expired", req.url));
+  const expired = NextResponse.redirect(publicUrl(req, "/expired"));
   if (!code || code.length > 64) return expired;
 
   try {
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
     const nowBD = new Date().toLocaleString("sv-SE", { timeZone: "Asia/Dhaka" });   // 'YYYY-MM-DD HH:MM:SS'
     if (row.expires_at < nowBD) return expired;
 
-    const res = NextResponse.redirect(new URL("/", req.url));
+    const res = NextResponse.redirect(publicUrl(req, "/"));
     res.cookies.set(SESSION_COOKIE.name, await createSession(row.master_id), SESSION_COOKIE.options);
     return res;
   } catch (e) {
