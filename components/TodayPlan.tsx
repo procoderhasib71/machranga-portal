@@ -13,6 +13,13 @@ async function todo(payload: Record<string, unknown>) {
   if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error ?? "হলো না");
 }
 
+/** "মেডিসিন: দিন ১ — Cardiology" → বড় করে "Cardiology", ছোট করে "মেডিসিন · দিন ১" (plan এর দিন ছোট দেখায়) */
+function splitTitle(title: string): { main: string; plan: string } {
+  const dash = title.indexOf(" — ");
+  if (dash < 0) return { main: title, plan: "" };
+  return { main: title.slice(dash + 3), plan: title.slice(0, dash).replace(":", " ·") };
+}
+
 const BURST = ["var(--brand)", "var(--accent)", "var(--ok)", "var(--brand)", "var(--accent)", "var(--ok)", "var(--brand)", "var(--accent)"];
 
 function Tick({ done, live, onClick, disabled, label, accent, celebrate }: {
@@ -109,10 +116,11 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
                 <div className="min-w-0 flex-1">
                   <p className="text-xs num muted">
                     {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
+                    {splitTitle(b.title).plan && <span className="ml-1.5">· {splitTitle(b.title).plan}</span>}
                     {b.live && !done && <span className="chip text-[11px] py-0 ml-2">এখন</span>}
                   </p>
                   <p className={`text-[15px] leading-snug break-words ${b.live && !done ? "font-semibold" : ""}`}>
-                    <span className="strike" data-done={done}>{b.title}</span>
+                    <span className="strike" data-done={done}>{splitTitle(b.title).main}</span>
                   </p>
                 </div>
               </li>

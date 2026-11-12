@@ -135,6 +135,9 @@ export function BlockForm({ block, today, kind = "date", days, onClose, onDelete
           </label>
         </div>
 
+        <details className="group" open={Boolean(block?.note) || f.focus !== null || !f.remind}>
+          <summary className="link text-sm cursor-pointer list-none select-none">আরও অপশন <span className="muted font-normal">(টিপস, Pomodoro, মনে করানো)</span> ▾</summary>
+          <div className="space-y-4 mt-3">
         <label className="label">টিপস <span className="font-normal muted">(ঐচ্ছিক)</span>
           <textarea className="field" rows={2} value={f.note} onChange={(e) => set({ note: e.target.value })} maxLength={300}
             placeholder="যেমন: আগে ছবিগুলো দেখে নাও" />
@@ -157,6 +160,8 @@ export function BlockForm({ block, today, kind = "date", days, onClose, onDelete
           </span>
           <Switch on={f.remind} onChange={(v) => set({ remind: v })} label="মনে করানো" />
         </div>
+          </div>
+        </details>
 
         {error && <p className="text-sm rounded-xl p-3" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>{error}</p>}
 
@@ -350,8 +355,8 @@ export function DayOff({ off, today }: { off: boolean; today: string }) {
   }
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn-ghost text-sm rounded-lg px-2.5 py-1.5" title="এক দিনের জন্য সাপ্তাহিক রুটিন বন্ধ">
-        🌴 ছুটি
+      <button type="button" onClick={() => setOpen(true)} className="btn-ghost rounded-lg !px-2 !py-1 text-base" title="ছুটি: এক দিনের জন্য সাপ্তাহিক রুটিন বন্ধ" aria-label="ছুটি নাও">
+        🌴
       </button>
       {open && (
         <Sheet title="ছুটির দিন" onClose={() => setOpen(false)}>

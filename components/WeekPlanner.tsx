@@ -20,14 +20,15 @@ export default function WeekPlanner({ blocks, today, todayCode, selected }: { bl
   const count = (code: string) => blocks.filter((b) => on(b, code)).length;
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 -mt-2">
-        <TemplatePicker hasWeekly={blocks.length > 0} className="btn-outline py-2" />
-        <span className="text-xs muted">তৈরি রুটিন থেকে শুরু করো, তারপর নিজের মতো বদলাও</span>
-      </div>
-      <p className="text-sm muted">
-        একবার সাজিয়ে রাখলে প্রতি সপ্তাহে নিজে চলে: সকালে আজকের প্ল্যান, শুরুতে মনে করানো, শেষে ✅, আর Pomodoro তে কাজ।
-        একটা বার সাজিয়ে &ldquo;অন্য বারে কপি&rdquo; চাপলেই পুরো সপ্তাহ।
-      </p>
+      {blocks.length === 0 ? (
+        <div className="card card-pad">
+          <p className="font-semibold">প্রতি সপ্তাহে ঘুরে আসা রুটিন</p>
+          <p className="text-sm muted mt-1 mb-3">একটা তৈরি রুটিন বেছে নাও, পরে নিজের মতো বদলাও। অথবা উপরের বোতামে নিজে যোগ করো।</p>
+          <TemplatePicker hasWeekly={false} className="btn-primary py-2" />
+        </div>
+      ) : (
+        <div className="flex justify-end -mt-2"><TemplatePicker hasWeekly className="btn-ghost text-sm rounded-lg" /></div>
+      )}
 
       {/* ফোন/ট্যাবলেট: বারের ট্যাব আর বাছা বারের তালিকা */}
       <div className="lg:hidden space-y-3">
