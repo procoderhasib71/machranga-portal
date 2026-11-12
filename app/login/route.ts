@@ -23,7 +23,7 @@ function page(code: string): string {
   button{margin-top:12px;width:100%;padding:14px;border:0;border-radius:12px;background:var(--teal);color:#fff;font-size:17px;font-weight:600;cursor:pointer}
 </style></head><body><form class="card" method="post" action="/login">
   <div style="font-size:44px">🐦</div><h1>মাছরাঙা পোর্টাল</h1>
-  <p>তোমার কাজের লিস্ট, রুটিন, স্বাস্থ্য — সব এক জায়গায়।</p>
+  <p>তোমার রুটিন আর কাজ, স্বাস্থ্য, পড়াশোনা — সব এক জায়গায়।</p>
   <input type="hidden" name="code" value="${code}">
   <button type="submit">ঢুকুন →</button>
 </form><script>document.forms[0].querySelector("button").textContent="ঢুকছি…";document.forms[0].submit();</script></body></html>`;

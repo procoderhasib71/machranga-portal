@@ -138,7 +138,7 @@ export default function SignInPage() {
         <div className="space-y-2">
           <div className="lg:hidden mb-6"><Logo size={40} /></div>
           <h1 className="text-[28px] font-bold tracking-tight">পোর্টালে ঢোকো</h1>
-          <p className="text-sm muted">তোমার কাজের লিস্ট, রুটিন, স্বাস্থ্য — সব এক জায়গায়</p>
+          <p className="text-sm muted">তোমার রুটিন আর কাজ, স্বাস্থ্য, পড়াশোনা — সব এক জায়গায়</p>
         </div>
 
         <div role="tablist" className="grid grid-cols-2 gap-1 p-1 rounded-xl" style={{ background: "var(--surface-2)" }}>

@@ -8,6 +8,9 @@
 // - রুটিনের কাজ (lib/routineTodos.ts বানায়): ব্লকই আসল, তাই নাম আর দিন পোর্টাল → Pomodoro; মুছলে সারি মোছে না
 //   (status 'deleted' থাকে, নইলে পরের sync আবার বানাত)
 // - আগের ব্যবস্থার "routine-{block}-{YYYYMMDD}" টাস্কগুলো সরে যায় (শেষ করা থাকলে নতুন কাজটাও শেষ হয়)
+// - শুধু ফোকাসের ব্লক (lib/focus.ts) Pomodoro তে যায়; ঘুম/খাওয়া/নামাজ জাতীয় ব্লকের কাজ পোর্টালেই থাকে, আগে গিয়ে থাকলে সরে যায়
+
+import { isFocus } from "./focus.ts";
 
 export type PomoTask = {
   id: string; title: string; category?: string; duration?: number; completed: boolean;
@@ -22,7 +25,7 @@ export type TodoRow = {
   routine_id?: number | null; routine_date?: string | null;
 };
 
-export type BlockRow = { id: number; days: string; date?: string | null; start_time: string; end_time: string | null; title: string };
+export type BlockRow = { id: number; days: string; date?: string | null; start_time: string; end_time: string | null; title: string; focus?: number | null };
 
 export type DbOp = { sql: string; args: (string | number | null)[] };
 
@@ -115,6 +118,15 @@ export function plan(input: PlanInput): Plan {
   for (const todo of todos) {
     const map = byId();
     const routine = Boolean(todo.routine_id);
+    // ফোকাস নয় এমন রুটিন ব্লকের কাজ Pomodoro তে না (আগে গিয়ে থাকলে সরাই, কাজটা পোর্টালে থাকে)
+    const block = todo.routine_id ? blockById.get(todo.routine_id) : undefined;
+    if (block && todo.status !== "deleted" && !isFocus(block)) {
+      if (todo.pomo_id) {
+        if (map.has(todo.pomo_id)) { removeTask(todo.pomo_id); changed++; }
+        ops.push({ sql: "UPDATE hermes_todos SET pomo_id = NULL, pomo_done = 0 WHERE id = ? AND master_id = ?", args: [todo.id, masterId] });
+      }
+      continue;
+    }
     // ১. to-do তে মোছা
     if (todo.status === "deleted") {
       if (todo.pomo_id && map.has(todo.pomo_id)) { removeTask(todo.pomo_id); changed++; }

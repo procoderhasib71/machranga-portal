@@ -153,3 +153,16 @@ test("Pomodoro তে রুটিনের কাজের নামের শ�
   const again = plan({ ...base, todos: [todo({ id: 9, task: "Cardiovascular: Arrhythmias · রাত ৮টা", pomo_id: "hermes-9", ...r })], tasks: [{ ...p.tasks[0] }] });
   assert.equal(again.tasksChanged, false);   // পরের sync এ আর বদল নেই
 });
+
+test("ফোকাস নয় এমন রুটিন ব্লক (ঘুম, খাওয়া) Pomodoro তে যায় না; আগে গিয়ে থাকলে সরে যায়, কাজটা থাকে", () => {
+  const blocks = [
+    { id: 1, days: "daily", start_time: "23:00", end_time: null, title: "ঘুম" },
+    { id: 2, days: "daily", start_time: "20:00", end_time: "22:00", title: "রাতের পড়া" },
+    { id: 3, days: "daily", start_time: "14:00", end_time: null, title: "খাওয়া", focus: 1 },   // ইউজার নিজে চালু করেছে
+  ];
+  const r = (id: number, rid: number, o: Partial<TodoRow> = {}) => todo({ id, task: `t${id}`, due_date: "2026-11-12", routine_id: rid, routine_date: "2026-11-12", ...o });
+  const p = plan({ ...base, blocks, todos: [r(10, 1, { pomo_id: "hermes-10" }), r(11, 2), r(12, 3)], tasks: [task({ id: "hermes-10", title: "ঘুম" })] });
+  assert.deepEqual(p.tasks.map((t) => t.id).sort(), ["hermes-11", "hermes-12"]);
+  assert.match(p.ops[0].sql, /SET pomo_id = NULL/);
+  assert.ok(!p.ops.some((o) => /status = 'deleted'|DELETE/.test(o.sql)));
+});

@@ -8,7 +8,7 @@ const latin = Inter({ subsets: ["latin"], variable: "--font-latin" });
 
 export const metadata: Metadata = {
   title: "মাছরাঙা পোর্টাল",
-  description: "তোমার মাছরাঙা সহকারীর সবকিছু এক জায়গায়: কাজের লিস্ট, রুটিন, স্বাস্থ্য, পড়াশোনা",
+  description: "তোমার মাছরাঙা সহকারীর সবকিছু এক জায়গায়: রুটিন আর কাজ, স্বাস্থ্য, পড়াশোনা",
   applicationName: "মাছরাঙা",
   appleWebApp: { capable: true, title: "মাছরাঙা", statusBarStyle: "default" },
   icons: { icon: [{ url: "/favicon-48.png", sizes: "48x48", type: "image/png" }, { url: "/icon-192.png", sizes: "192x192", type: "image/png" }], apple: "/apple-touch-icon.png" },

@@ -9,6 +9,7 @@ import type { RoutineBlock } from "@/lib/data";
 import type { PlanDayStatus, PlanSummary } from "@/lib/plans";
 import { TEMPLATES, type Template } from "@/lib/templates";
 import Switch from "./Switch";
+import { autoFocus, isFocus } from "@/lib/focus";
 
 async function call(payload: Record<string, unknown>) {
   const r = await fetch("/api/routine", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -56,14 +57,16 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
   );
 }
 
-type FormState = { title: string; kind: "date" | "weekly"; date: string; days: string[]; start_time: string; end_time: string; note: string; remind: boolean };
+// focus: null = নিজে থেকে (নাম দেখে), true/false = ইউজার সুইচ বদলেছে
+type FormState = { title: string; kind: "date" | "weekly"; date: string; days: string[]; start_time: string; end_time: string; note: string; remind: boolean; focus: boolean | null };
 
 function initial(b: RoutineBlock | undefined, today: string, kind: "date" | "weekly", presetDays?: string[]): FormState {
-  if (!b) return { title: "", kind, date: today, days: presetDays?.length ? presetDays : [...DAY_ORDER], start_time: "20:00", end_time: "21:00", note: "", remind: true };
+  if (!b) return { title: "", kind, date: today, days: presetDays?.length ? presetDays : [...DAY_ORDER], start_time: "20:00", end_time: "21:00", note: "", remind: true, focus: null };
   return {
     title: b.title, kind: b.date ? "date" : "weekly", date: b.date ?? today,
     days: b.date ? [...DAY_ORDER] : b.days === "daily" ? [...DAY_ORDER] : b.days.split(","),
     start_time: b.start_time, end_time: b.end_time ?? "", note: b.note ?? "", remind: Boolean(b.remind),
+    focus: b.focus === 1 ? true : b.focus === 0 ? false : null,
   };
 }
 
@@ -136,6 +139,16 @@ function BlockForm({ block, today, kind = "date", days, onClose }: { block?: Rou
 
         <div className="flex items-center justify-between gap-4 rounded-xl px-4 py-3" style={{ background: "var(--surface-2)" }}>
           <span className="text-sm">
+            <span className="font-semibold block">🍅 Pomodoro তে ফোকাস</span>
+            <span className="muted text-xs">
+              {f.focus === null ? "নাম দেখে নিজে ঠিক হয়েছে · " : ""}{(f.focus ?? autoFocus(f.title, f.kind === "date")) ? "টাইমার চালানোর কাজ হয়ে যাবে" : "শুধু এখানে থাকবে, Pomodoro তে যাবে না"}
+            </span>
+          </span>
+          <Switch on={f.focus ?? autoFocus(f.title, f.kind === "date")} onChange={(v) => set({ focus: v })} label="Pomodoro তে ফোকাস" />
+        </div>
+
+        <div className="flex items-center justify-between gap-4 rounded-xl px-4 py-3" style={{ background: "var(--surface-2)" }}>
+          <span className="text-sm">
             <span className="font-semibold block">শুরুর সময়ে মনে করাবে</span>
             <span className="muted text-xs">বট মেসেজ দেবে</span>
           </span>
@@ -157,7 +170,7 @@ function BlockForm({ block, today, kind = "date", days, onClose }: { block?: Rou
           <button type="button" onClick={onClose} className="btn-outline ml-auto">থাক</button>
           <button type="submit" disabled={pending} className="btn-primary">{pending ? "রাখছি…" : block ? "বদলাও" : "যোগ করো"}</button>
         </div>
-        {block && <p className="text-xs muted">কাজের লিস্ট আর Pomodoro তেও সাথে সাথে বদলে যাবে।</p>}
+        {block && <p className="text-xs muted">আজকের তালিকা আর Pomodoro তেও সাথে সাথে বদলে যাবে।</p>}
       </form>
     </Sheet>
   );
@@ -173,6 +186,7 @@ export function EditableBlock({ b, today }: { b: RoutineBlock; today: string }) 
         style={{ background: b.days === "daily" ? "var(--surface-2)" : "var(--brand-soft)" }}>
         <p className="text-xs num muted flex items-center gap-1">
           {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
+          {isFocus(b) && <span title="Pomodoro তে ফোকাসের কাজ" aria-label="Pomodoro তে ফোকাস">🍅</span>}
           {!b.remind && <BellOff size={12} aria-label="মনে করানো বন্ধ" />}
           <Pencil size={12} className="ml-auto opacity-40 group-hover:opacity-100" style={{ color: "var(--brand)" }} />
         </p>
@@ -384,7 +398,7 @@ export function TemplatePicker({ hasWeekly, className = "btn-outline" }: { hasWe
                       {rows.sort((a, b) => a.start.localeCompare(b.start)).map((b) => (
                         <li key={b.title + b.start} className="flex gap-3 text-sm rounded-lg px-3 py-2" style={{ background: "var(--surface-2)" }}>
                           <span className="num muted shrink-0 w-[7.5rem]">{humanTime(b.start)}{b.end ? `–${humanTime(b.end).split(" ")[1]}` : ""}</span>
-                          <span className="font-medium">{b.title}</span>
+                          <span className="font-medium">{b.title}{b.focus ? " 🍅" : ""}</span>
                         </li>
                       ))}
                     </ul>
@@ -399,6 +413,7 @@ export function TemplatePicker({ hasWeekly, className = "btn-outline" }: { hasWe
               )}
               <p className="text-xs muted mt-2">
                 {hasWeekly && mode === "replace" ? "আগের সাপ্তাহিক রুটিন সরে যাবে; তারিখের পড়ার পরিকল্পনা থাকবে।" : "আগের রুটিন থাকবে, একই ব্লক দুবার বসবে না।"}
+                {" "}🍅 = Pomodoro তে ফোকাসের কাজ।
               </p>
               {error && <p className="text-sm rounded-xl p-3 mt-3" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>{error}</p>}
               <div className="flex items-center gap-2 mt-4">

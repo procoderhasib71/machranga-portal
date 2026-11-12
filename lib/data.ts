@@ -26,11 +26,11 @@ export async function getTodos(mid: string): Promise<{ open: Todo[]; done: Todo[
   return { open, done };
 }
 
-export type RoutineBlock = { id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string; note: string | null; remind: number };
+export type RoutineBlock = { id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string; note: string | null; remind: number; focus: number | null };
 
 export async function getRoutine(mid: string): Promise<RoutineBlock[]> {
   return query<RoutineBlock>(
-    "SELECT id, days, date, start_time, end_time, title, note, remind FROM hermes_routine_blocks " +
+    "SELECT id, days, date, start_time, end_time, title, note, remind, focus FROM hermes_routine_blocks " +
     "WHERE master_id = ? AND (date IS NULL OR date >= ?) ORDER BY COALESCE(date, ''), start_time, id", [mid, todayBD()]);
 }
 
@@ -97,7 +97,7 @@ export function isOverdue(due: string | null): boolean {
 export async function getRoutineMonth(mid: string, from: string, to: string) {
   const [blocks, todos] = await Promise.all([
     query<RoutineBlock & { created_at: string | null }>(
-      "SELECT id, days, date, start_time, end_time, title, note, remind, created_at FROM hermes_routine_blocks " +
+      "SELECT id, days, date, start_time, end_time, title, note, remind, focus, created_at FROM hermes_routine_blocks " +
       "WHERE master_id = ? AND (date IS NULL OR date BETWEEN ? AND ?)", [mid, from, to]),
     query<{ routine_id: number; routine_date: string; status: string }>(
       "SELECT routine_id, routine_date, status FROM hermes_todos WHERE master_id = ? AND routine_id IS NOT NULL AND routine_date BETWEEN ? AND ?",

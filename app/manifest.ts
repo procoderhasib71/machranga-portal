@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "মাছরাঙা পোর্টাল",
     short_name: "মাছরাঙা",
-    description: "কাজের লিস্ট, রুটিন, পড়াশোনা আর স্বাস্থ্য — এক জায়গায়",
+    description: "রুটিন আর কাজ, পড়াশোনা আর স্বাস্থ্য — এক জায়গায়",
     lang: "bn",
     id: "/",
     start_url: "/",

@@ -62,7 +62,7 @@ export default function SettingsForm(p: Props) {
     <div>
       <div className="divide-y divide-[var(--line)]">
         <Row label="🌅 সকালের আজকের প্ল্যান" hint="আজকের রুটিন আর কাজ, প্রতিদিন এই সময়ে এক মেসেজে">
-          <TimeToggle label="সকালের কাজের লিস্ট" value={state.todoDigest} defaultTime="08:00" onChange={(v) => save({ todoDigest: v })} />
+          <TimeToggle label="সকালের আজকের প্ল্যান" value={state.todoDigest} defaultTime="08:00" onChange={(v) => save({ todoDigest: v })} />
         </Row>
         <Row label="📰 প্রতিদিনের খবর" hint="তোমার পছন্দের বিষয়ের ৫-৬টা খবর">
           <TimeToggle label="প্রতিদিনের খবর" value={state.newsTime} defaultTime="08:30" onChange={(v) => save({ newsTime: v })} />

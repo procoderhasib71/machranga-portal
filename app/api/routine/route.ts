@@ -24,13 +24,13 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
     if (action === "add") {
       const n = await one<{ n: number }>("SELECT COUNT(*) AS n FROM hermes_routine_blocks WHERE master_id = ?", [mid]);
       if ((n?.n ?? 0) >= MAX_BLOCKS) return fail(`রুটিনে ${MAX_BLOCKS}টার বেশি ব্লক রাখা যাবে না`);
-      await exec("INSERT INTO hermes_routine_blocks (master_id, days, date, start_time, end_time, title, note, remind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [mid, b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, bdNow()]);
+      await exec("INSERT INTO hermes_routine_blocks (master_id, days, date, start_time, end_time, title, note, remind, focus, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [mid, b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, b.focus, bdNow()]);
       return null;
     }
     if (!id) return fail("কোন ব্লক?");
-    const n = await exec("UPDATE hermes_routine_blocks SET days = ?, date = ?, start_time = ?, end_time = ?, title = ?, note = ?, remind = ? WHERE id = ? AND master_id = ?",
-      [b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, id, mid]);
+    const n = await exec("UPDATE hermes_routine_blocks SET days = ?, date = ?, start_time = ?, end_time = ?, title = ?, note = ?, remind = ?, focus = ? WHERE id = ? AND master_id = ?",
+      [b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, b.focus, id, mid]);
     return n ? null : fail("ব্লকটা পাওয়া যায়নি", 404);
   }
   if (action === "delete" && id) {
@@ -71,8 +71,8 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
     if (after > MAX_BLOCKS) return fail(`রুটিনে ${MAX_BLOCKS}টার বেশি ব্লক রাখা যাবে না`);
     if (mode === "replace") await exec("DELETE FROM hermes_routine_blocks WHERE master_id = ? AND date IS NULL", [mid]);
     for (const b of rows) {
-      await exec("INSERT INTO hermes_routine_blocks (master_id, days, date, start_time, end_time, title, note, remind, created_at) VALUES (?, ?, NULL, ?, ?, ?, NULL, 1, ?)",
-        [mid, b.days, b.start, b.end ?? null, b.title, bdNow()]);
+      await exec("INSERT INTO hermes_routine_blocks (master_id, days, date, start_time, end_time, title, note, remind, focus, created_at) VALUES (?, ?, NULL, ?, ?, ?, NULL, 1, ?, ?)",
+        [mid, b.days, b.start, b.end ?? null, b.title, b.focus === undefined ? null : b.focus ? 1 : 0, bdNow()]);
     }
     return null;
   }
