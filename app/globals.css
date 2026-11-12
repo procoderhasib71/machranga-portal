@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f6f8f7;
+  --card: #ffffff;
+  --ink: #16302b;
+  --muted: #5f7470;
+  --line: #e3e9e7;
+  --teal: #0d7a6f;      /* মাছরাঙার পিঠের রঙ */
+  --teal-soft: #e0f2ef;
+  --orange: #e8742c;    /* মাছরাঙার বুকের রঙ */
+  --orange-soft: #fdeede;
+  --red: #c0392b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1a18;
+    --card: #17241f;
+    --ink: #e8f0ee;
+    --muted: #93a8a3;
+    --line: #243530;
+    --teal: #2fb3a5;
+    --teal-soft: #103530;
+    --orange: #f08a4b;
+    --orange-soft: #3a2616;
+    --red: #e06a5c;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f1a18;
+  --card: #17241f;
+  --ink: #e8f0ee;
+  --muted: #93a8a3;
+  --line: #243530;
+  --teal: #2fb3a5;
+  --teal-soft: #103530;
+  --orange: #f08a4b;
+  --orange-soft: #3a2616;
+  --red: #e06a5c;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-bengali), "Noto Sans Bengali", "Hind Siliguri", sans-serif;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}

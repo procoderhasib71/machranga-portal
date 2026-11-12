@@ -1,0 +1,4 @@
+# Firebase App Hosting এর সেটিংস।
+# গোপন মান (TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, SESSION_SECRET) বসানো থাকে App Hosting console এ, এই রিপোতে নয়।
+runConfig:
+  minInstances: 0
