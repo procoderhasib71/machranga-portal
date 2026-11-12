@@ -1,8 +1,8 @@
 // ড্যাশবোর্ড: এক নজরে আজকের সবকিছু
-import { Bell, CalendarClock, ChevronRight, CircleCheck, HeartPulse, ListChecks, Newspaper, Sparkles } from "lucide-react";
+import { Bell, CalendarClock, ChevronRight, CircleCheck, HeartPulse, Newspaper, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { requireMasterId } from "@/lib/session";
-import { getHealthLogs, getReminders, getRoutine, getSubscription, getTodos, getUser, isOverdue, todaysBlocks } from "@/lib/data";
+import { getHealthLogs, getReminders, getRoutine, getSubscription, getTodos, getUser, todaysBlocks } from "@/lib/data";
 import { DAY_ORDER, bnDigits, fullDateBn, greeting, humanDate, humanDateTime, humanTime, nowBD, nowHHMM, todayBD } from "@/lib/bn";
 import { metricBn, valueText } from "@/lib/health";
 import { getNews, timeAgo, type NewsItem } from "@/lib/news";
@@ -11,9 +11,9 @@ import RoutineToday from "@/components/RoutineToday";
 
 export const dynamic = "force-dynamic";
 
-function Stat({ label, value, sub, tone = "brand", delay = 0 }: { label: string; value: string; sub?: string; tone?: "brand" | "accent"; delay?: number }) {
+function Stat({ label, value, sub, tone = "brand", delay = 0, className = "" }: { label: string; value: string; sub?: string; tone?: "brand" | "accent"; delay?: number; className?: string }) {
   return (
-    <div className="card card-pad rise" style={{ animationDelay: `${delay}ms` }}>
+    <div className={`card card-pad rise ${className}`} style={{ animationDelay: `${delay}ms` }}>
       <p className="eyebrow">{label}</p>
       <p className="num text-2xl sm:text-[28px] font-bold mt-1 leading-none" style={{ color: tone === "accent" ? "var(--accent)" : "var(--ink)" }}>{value}</p>
       {sub && <p className="text-xs muted mt-1.5 truncate">{sub}</p>}
@@ -35,10 +35,7 @@ export default async function Dashboard() {
   const blocks = todaysBlocks(routine, dayCode);
   const current = blocks.find((b) => b.start_time <= hhmm && (b.end_time ? hhmm < b.end_time : false));
   const nextBlock = blocks.find((b) => b.start_time > hhmm);
-  // রুটিনের কাজ "আজকের রুটিন" এ টিকসহ দেখাই, তাই "আজকের কাজ" এ শুধু সাধারণ কাজ
-  const doneToday = todos.done.filter((t) => !t.routine_id && (t.done_at ?? "").startsWith(today)).length;
-  const openNow = todos.open.filter((t) => !t.routine_id);
-  const total = doneToday + openNow.length;
+  // রুটিনের প্রতিটা ব্লকের আজকের কাজ: টিক দিলে কাজের লিস্ট আর Pomodoro তেও শেষ
   const routineTodo = new Map([...todos.open, ...todos.done]
     .filter((t) => t.routine_id && t.due_date === today).map((t) => [t.routine_id!, t]));
   const todayBlocks = blocks.map((b) => {
@@ -47,7 +44,6 @@ export default async function Dashboard() {
       todoId: t?.id ?? null, done: t?.status === "done", live: b === current, past: (b.end_time ?? b.start_time) <= hhmm };
   });
   const routineDone = todayBlocks.filter((b) => b.done).length;
-  const pct = total ? Math.round((doneToday / total) * 100) : 0;
   const lastBp = health.filter((h) => h.metric === "bp").at(-1);
   const lastHealth = health.filter((h) => h.metric !== "symptom").at(-1);
   const nextReminder = reminders[0];
@@ -60,9 +56,8 @@ export default async function Dashboard() {
         <h1 className="text-[26px] sm:text-[32px] font-bold tracking-tight mt-1">{greeting(now)}, {name} 👋</h1>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Stat label="আজকের কাজ" value={total ? `${bnDigits(doneToday)}/${bnDigits(total)}` : "০"} sub={total ? `${bnDigits(pct)}% শেষ` : "লিস্ট ফাঁকা"} delay={40} />
-        <Stat label="আজকের রুটিন" value={blocks.length ? `${bnDigits(routineDone)}/${bnDigits(blocks.length)}` : "০"} sub={nextBlock ? `পরেরটা ${humanTime(nextBlock.start_time)}` : blocks.length ? "আজকের সব শেষ" : "কোনো ব্লক নেই"} delay={80} />
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <Stat className="col-span-2 lg:col-span-1" label="আজকের রুটিন" value={blocks.length ? `${bnDigits(routineDone)}/${bnDigits(blocks.length)}` : "০"} sub={nextBlock ? `পরেরটা ${humanTime(nextBlock.start_time)}` : blocks.length ? "আজকের সব শেষ" : "কোনো ব্লক নেই"} delay={80} />
         <Stat label="পরের রিমাইন্ডার" value={nextReminder ? humanTime(nextReminder.trigger_time.slice(11, 16)).split(" ").at(-1)! : "—"}
           sub={nextReminder ? `${humanDate(nextReminder.trigger_time.slice(0, 10))} ${humanTime(nextReminder.trigger_time.slice(11, 16)).split(" ")[0]} · ${nextReminder.task}` : "কিছু নেই"}
           tone="accent" delay={120} />
@@ -82,32 +77,6 @@ export default async function Dashboard() {
 
       <div className="grid gap-4 lg:grid-cols-5">
         <section className="card card-pad lg:col-span-3 rise" style={{ animationDelay: "200ms" }}>
-          <CardHead title="আজকের কাজ" Icon={ListChecks} action={<Link href="/todo" className="link">সব <ChevronRight size={16} /></Link>} />
-          {total > 0 && (
-            <div className="mb-4">
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-2)" }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "var(--brand)" }} />
-              </div>
-            </div>
-          )}
-          {openNow.length === 0 ? (
-            <Empty text={doneToday ? "আজকের সব কাজ শেষ! 🎉" : "লিস্ট ফাঁকা। বটকে বলো:"} example={doneToday ? undefined : "লিস্টে রাখো: বাজার করা"} />
-          ) : (
-            <ul className="divide-y divide-[var(--line)]">
-              {openNow.slice(0, 6).map((t) => (
-                <li key={t.id} className="flex items-center gap-3 py-2.5">
-                  <span className="size-4 rounded-full border-2 shrink-0" style={{ borderColor: t.priority ? "var(--accent)" : "var(--faint)" }} />
-                  <span className="flex-1 min-w-0 truncate">{t.task}</span>
-                  {t.priority ? <span className="chip chip-accent">জরুরি</span> : null}
-                  {t.due_date && <span className={`chip ${isOverdue(t.due_date) ? "chip-danger" : "chip-muted"}`}>{humanDate(t.due_date)}</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-          {openNow.length > 6 && <p className="text-sm muted mt-2">…আরও {bnDigits(openNow.length - 6)}টা</p>}
-        </section>
-
-        <section className="card card-pad lg:col-span-2 rise" style={{ animationDelay: "240ms" }}>
           <CardHead title="আজকের রুটিন" Icon={CalendarClock} action={<Link href="/routine" className="link">পুরোটা <ChevronRight size={16} /></Link>} />
           {blocks.length === 0 ? (
             <Empty text="আজকের জন্য কোনো ব্লক নেই। বটকে বলো:" example="আমার একটা পড়ার রুটিন বানাও" />
@@ -116,7 +85,7 @@ export default async function Dashboard() {
           )}
         </section>
 
-        <section className="card card-pad lg:col-span-3 rise" style={{ animationDelay: "280ms" }}>
+        <section className="card card-pad lg:col-span-2 rise" style={{ animationDelay: "240ms" }}>
           <CardHead title="সামনের রিমাইন্ডার" Icon={Bell} accent />
           {reminders.length === 0 ? (
             <Empty text="কোনো রিমাইন্ডার নেই। বটকে বলো:" example="কাল সকাল ৭টায় পড়তে বসার কথা মনে করাস" />
@@ -153,7 +122,7 @@ export default async function Dashboard() {
         </section>
 
         {news.length > 0 && (
-          <section className="card card-pad lg:col-span-5 rise" style={{ animationDelay: "360ms" }}>
+          <section className="card card-pad lg:col-span-3 rise" style={{ animationDelay: "320ms" }}>
             <CardHead title={firstTopic ? `আজকের খবর · ${firstTopic}` : "আজকের খবর"} Icon={Newspaper}
               action={<Link href={firstTopic ? `/news?t=${encodeURIComponent(firstTopic)}` : "/news"} className="link">আরও <ChevronRight size={16} /></Link>} />
             <ul className="grid gap-x-6 sm:grid-cols-2">
