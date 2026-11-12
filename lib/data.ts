@@ -103,5 +103,8 @@ export async function getRoutineMonth(mid: string, from: string, to: string) {
       "SELECT routine_id, routine_date, status FROM hermes_todos WHERE master_id = ? AND routine_id IS NOT NULL AND routine_date BETWEEN ? AND ?",
       [mid, from, to]),
   ]);
-  return { blocks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])) };
+  const tasks = await query<{ id: number; task: string; due_date: string; status: string }>(
+    "SELECT id, task, due_date, status FROM hermes_todos WHERE master_id = ? AND routine_id IS NULL AND status IN ('open', 'done') AND due_date BETWEEN ? AND ?",
+    [mid, from, to]);
+  return { blocks, tasks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])) };
 }

@@ -3,7 +3,9 @@
 
 export type CalBlock = { id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string; created_at?: string | null };
 export type CalStatus = "done" | "missed" | "today" | "upcoming" | "past";
-export type CalItem = { id: number; title: string; start_time: string; end_time: string | null; status: CalStatus; dated: boolean };
+export type CalItem = { id: number; title: string; start_time: string; end_time: string | null; status: CalStatus; dated: boolean; kind: "block" | "task" };
+/** সময় ছাড়া কাজ (বট, পোর্টাল বা Pomodoro থেকে), যেদিনের তারিখ সেদিনে */
+export type CalTask = { id: number; task: string; due_date: string; status: string };
 export type CalCell = { date: string; day: number; inMonth: boolean; isToday: boolean; items: CalItem[] };
 
 const CODES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];   // JS getUTCDay ক্রম
@@ -31,7 +33,7 @@ export function monthRange(month: string): { from: string; to: string } {
 }
 
 /** statuses: `${block id}|${তারিখ}` → সেই দিনের কাজের status ('open' | 'done' | 'deleted') */
-export function buildMonth(month: string, today: string, blocks: CalBlock[], statuses: Map<string, string>): CalCell[][] {
+export function buildMonth(month: string, today: string, blocks: CalBlock[], statuses: Map<string, string>, tasks: CalTask[] = []): CalCell[][] {
   const { from, to } = monthRange(month);
   const weeks: CalCell[][] = [];
   for (let d = at(from); iso(d) <= to; d.setUTCDate(d.getUTCDate() + 1)) {
@@ -47,8 +49,12 @@ export function buildMonth(month: string, today: string, blocks: CalBlock[], sta
           : date === today ? "today"
           : date > today ? "upcoming"
           : s ? "missed" : "past";
-        return { id: b.id, title: b.title, start_time: b.start_time, end_time: b.end_time, status, dated: Boolean(b.date) };
-      });
+        return { id: b.id, title: b.title, start_time: b.start_time, end_time: b.end_time, status, dated: Boolean(b.date), kind: "block" };
+      })
+      .concat(tasks.filter((t) => t.due_date === date).map((t): CalItem => ({
+        id: -t.id, title: t.task, start_time: "", end_time: null, dated: true, kind: "task",
+        status: t.status === "done" ? "done" : date === today ? "today" : date > today ? "upcoming" : "missed",
+      })));
     if (!weeks.length || weeks.at(-1)!.length === 7) weeks.push([]);
     weeks.at(-1)!.push({ date, day: d.getUTCDate(), inMonth: date.startsWith(month), isToday: date === today, items });
   }

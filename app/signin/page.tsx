@@ -115,7 +115,7 @@ export default function SignInPage() {
           <h2 className="text-4xl font-bold leading-tight tracking-tight">তোমার দিনটা,<br />এক জায়গায় গোছানো।</h2>
           <ul className="mt-8 space-y-4 text-[15px]" style={{ color: "rgb(255 255 255 / 0.88)" }}>
             {[
-              [ListChecks, "কাজের লিস্ট, বটের সাথে সাথে মেলে"],
+              [ListChecks, "রুটিন আর কাজ, বট আর Pomodoro র সাথে মেলানো"],
               [CalendarClock, "সাপ্তাহিক পড়ার রুটিন, সময়মতো মনে করানো"],
               [HeartPulse, "প্রেশার, সুগার, ঘুম আর মনের চার্ট"],
               [GraduationCap, "MCQ এর অগ্রগতি আর টানা পড়ার হিসাব"],

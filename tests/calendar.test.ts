@@ -32,3 +32,11 @@ test("অবস্থা: শেষ, মিস, আজ, সামনে; সা�
   assert.equal(cell("2026-11-12").items[0].status, "today");
   assert.deepEqual(cell("2026-11-15").items.map((i) => [i.title, i.status]), [["পড়া", "upcoming"], ["দিন ৪", "upcoming"]]);
 });
+
+test("সময় ছাড়া কাজও তার দিনে, ব্লকের পরে", () => {
+  const cell = buildMonth("2026-11", "2026-11-12", [b({ id: 1, days: "once", date: "2026-11-14" })], new Map(),
+    [{ id: 5, task: "Anatomy study", due_date: "2026-11-14", status: "open" }, { id: 6, task: "বাজার", due_date: "2026-11-10", status: "open" }])
+    .flat();
+  assert.deepEqual(cell.find((c) => c.date === "2026-11-14")!.items.map((i) => [i.kind, i.title, i.status]), [["block", "পড়া", "upcoming"], ["task", "Anatomy study", "upcoming"]]);
+  assert.equal(cell.find((c) => c.date === "2026-11-10")!.items[0].status, "missed");
+});

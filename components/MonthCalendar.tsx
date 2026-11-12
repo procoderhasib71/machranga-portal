@@ -35,7 +35,7 @@ export default function MonthCalendar({ month, weeks, selected }: { month: strin
           {cells.map((c) => {
             const isSel = sel?.date === c.date;
             return (
-              <Link key={c.date} href={href(month, c.date)} scroll={false} aria-label={`${c.date}: ${c.items.length}টা ব্লক`}
+              <Link key={c.date} href={href(month, c.date)} scroll={false} aria-label={`${c.date}: ${c.items.length}টা`}
                 className="rounded-xl p-1 sm:p-1.5 min-h-[52px] sm:min-h-[92px] text-left flex flex-col transition-colors hover:bg-[var(--surface-2)]"
                 style={{
                   opacity: c.inMonth ? 1 : 0.4,
@@ -71,13 +71,13 @@ export default function MonthCalendar({ month, weeks, selected }: { month: strin
       {sel && (
         <section className="card card-pad rise">
           <h3 className="font-semibold mb-3">{fullDateBn(new Date(`${sel.date}T00:00:00`))}</h3>
-          {sel.items.length === 0 ? <p className="text-sm muted">এই দিনে রুটিনের কোনো ব্লক নেই।</p> : (
+          {sel.items.length === 0 ? <p className="text-sm muted">এই দিনে কিছু নেই।</p> : (
             <ul className="space-y-2">
               {sel.items.map((i) => (
                 <li key={i.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: TONE[i.status].bg }}>
                   <span className="size-2.5 rounded-full shrink-0" style={{ background: TONE[i.status].dot }} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-xs num muted">{humanTime(i.start_time)}{i.end_time ? ` – ${humanTime(i.end_time)}` : ""}{i.dated ? "" : " · প্রতি সপ্তাহে"}</span>
+                    <span className="block text-xs num muted">{i.kind === "task" ? "কাজ" : <>{humanTime(i.start_time)}{i.end_time ? ` – ${humanTime(i.end_time)}` : ""}{i.dated ? "" : " · প্রতি সপ্তাহে"}</>}</span>
                     <span className="block text-sm font-medium">{i.title}</span>
                   </span>
                   {TONE[i.status].label && <span className="chip chip-muted text-xs shrink-0">{TONE[i.status].label}</span>}

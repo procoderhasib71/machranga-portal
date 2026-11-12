@@ -7,7 +7,9 @@ import { DAY_ORDER, bnDigits, fullDateBn, greeting, humanDate, humanDateTime, hu
 import { metricBn, valueText } from "@/lib/health";
 import { getNews, timeAgo, type NewsItem } from "@/lib/news";
 import { CardHead, Empty } from "@/components/PageHeader";
-import RoutineToday from "@/components/RoutineToday";
+import TodayPlan from "@/components/TodayPlan";
+import { buildToday } from "@/lib/todayPlan";
+import { syncMasterQuietly } from "@/lib/pomodoroSync";
 import InstallApp from "@/components/InstallApp";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +26,7 @@ function Stat({ label, value, sub, tone = "brand", delay = 0, className = "" }: 
 
 export default async function Dashboard() {
   const mid = await requireMasterId();
+  await syncMasterQuietly(mid);   // Pomodoro তে যোগ করা কাজও আজকের তালিকায় আসুক
   const [user, todos, routine, reminders, sub, health] = await Promise.all([
     getUser(mid), getTodos(mid), getRoutine(mid), getReminders(mid), getSubscription(mid), getHealthLogs(mid, 14),
   ]);
@@ -34,17 +37,10 @@ export default async function Dashboard() {
   const hhmm = nowHHMM(now);
   const dayCode = DAY_ORDER[(now.getDay() + 1) % 7];   // JS: রবি=0 → আমাদের ক্রমে
   const blocks = todaysBlocks(routine, dayCode);
-  const current = blocks.find((b) => b.start_time <= hhmm && (b.end_time ? hhmm < b.end_time : false));
-  const nextBlock = blocks.find((b) => b.start_time > hhmm);
-  // রুটিনের প্রতিটা ব্লকের আজকের কাজ: টিক দিলে কাজের লিস্ট আর Pomodoro তেও শেষ
-  const routineTodo = new Map([...todos.open, ...todos.done]
-    .filter((t) => t.routine_id && t.due_date === today).map((t) => [t.routine_id!, t]));
-  const todayBlocks = blocks.map((b) => {
-    const t = routineTodo.get(b.id);
-    return { id: b.id, start_time: b.start_time, end_time: b.end_time, title: b.title, note: b.note,
-      todoId: t?.id ?? null, done: t?.status === "done", live: b === current, past: (b.end_time ?? b.start_time) <= hhmm };
-  });
-  const routineDone = todayBlocks.filter((b) => b.done).length;
+  // রুটিনের ব্লক আর সময় ছাড়া কাজ এক তালিকায় (কাজের আলাদা পেজ নেই)
+  const plan = buildToday(blocks, [...todos.open, ...todos.done], today, hhmm);
+  const current = plan.current;
+  const nextBlock = plan.next;
   const lastBp = health.filter((h) => h.metric === "bp").at(-1);
   const lastHealth = health.filter((h) => h.metric !== "symptom").at(-1);
   const nextReminder = reminders[0];
@@ -60,7 +56,8 @@ export default async function Dashboard() {
       <InstallApp />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        <Stat className="col-span-2 lg:col-span-1" label="আজকের রুটিন" value={blocks.length ? `${bnDigits(routineDone)}/${bnDigits(blocks.length)}` : "০"} sub={nextBlock ? `পরেরটা ${humanTime(nextBlock.start_time)}` : blocks.length ? "আজকের সব শেষ" : "কোনো ব্লক নেই"} delay={80} />
+        <Stat className="col-span-2 lg:col-span-1" label="আজকের রুটিন" value={plan.total ? `${bnDigits(plan.done)}/${bnDigits(plan.total)}` : "০"} sub={!plan.total ? "আজ কিছু নেই" : plan.done === plan.total ? "আজকের সব শেষ 🎉"
+          : current ? `এখন: ${current.title}` : nextBlock ? `পরেরটা ${humanTime(nextBlock.start_time)}` : `${bnDigits(plan.total - plan.done)}টা বাকি`} delay={80} />
         <Stat label="পরের রিমাইন্ডার" value={nextReminder ? humanTime(nextReminder.trigger_time.slice(11, 16)).split(" ").at(-1)! : "—"}
           sub={nextReminder ? `${humanDate(nextReminder.trigger_time.slice(0, 10))} ${humanTime(nextReminder.trigger_time.slice(11, 16)).split(" ")[0]} · ${nextReminder.task}` : "কিছু নেই"}
           tone="accent" delay={120} />
@@ -81,10 +78,10 @@ export default async function Dashboard() {
       <div className="grid gap-4 lg:grid-cols-5">
         <section className="card card-pad lg:col-span-3 rise" style={{ animationDelay: "200ms" }}>
           <CardHead title="আজকের রুটিন" Icon={CalendarClock} action={<Link href="/routine" className="link">পুরোটা <ChevronRight size={16} /></Link>} />
-          {blocks.length === 0 ? (
-            <Empty text="আজকের জন্য কোনো ব্লক নেই। বটকে বলো:" example="আমার একটা পড়ার রুটিন বানাও" />
+          {plan.total === 0 ? (
+            <Empty text="আজ রুটিনে কিছু নেই। রুটিন পেজে কাজ লেখো, অথবা বটকে বলো:" example="আমার একটা পড়ার রুটিন বানাও" />
           ) : (
-            <RoutineToday blocks={todayBlocks} />
+            <TodayPlan blocks={plan.blocks} tasks={plan.tasks} today={today} />
           )}
         </section>
 

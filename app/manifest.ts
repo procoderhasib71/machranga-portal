@@ -20,8 +20,7 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "আজকের কাজ", url: "/todo", icons: [{ src: "/icon-192.png", sizes: "192x192" }] },
-      { name: "রুটিন", url: "/routine", icons: [{ src: "/icon-192.png", sizes: "192x192" }] },
+      { name: "আজকের রুটিন", url: "/routine", icons: [{ src: "/icon-192.png", sizes: "192x192" }] },
     ],
   };
 }

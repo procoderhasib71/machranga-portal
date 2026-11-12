@@ -1,10 +1,13 @@
-import { CalendarClock, CalendarDays, CalendarRange, List, Repeat } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarRange, List, Repeat, Sun } from "lucide-react";
 import Link from "next/link";
 import { requireMasterId } from "@/lib/session";
-import { getRoutine, getRoutineMonth } from "@/lib/data";
+import { getRoutine, getRoutineMonth, getTodos, todaysBlocks } from "@/lib/data";
+import { buildToday, laterTasks } from "@/lib/todayPlan";
+import { syncMasterQuietly } from "@/lib/pomodoroSync";
+import TodayPlan from "@/components/TodayPlan";
 import { buildMonth, monthRange, validMonth } from "@/lib/calendar";
 import MonthCalendar from "@/components/MonthCalendar";
-import { DAY_BN, DAY_ORDER, bnDigits, humanDate, nowBD, todayBD } from "@/lib/bn";
+import { DAY_BN, DAY_ORDER, bnDigits, fullDateBn, humanDate, nowBD, nowHHMM, todayBD } from "@/lib/bn";
 import { planName } from "@/lib/routineEdit";
 import PageHeader, { Empty } from "@/components/PageHeader";
 import { EditableBlock, NewBlockButton, PlanChip } from "@/components/RoutineEditor";
@@ -15,7 +18,8 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
   const mid = await requireMasterId();
   const sp = await searchParams;
   const month = sp.view === "month" ? validMonth(sp.m, todayBD().slice(0, 7)) : null;
-  const all = await getRoutine(mid);
+  await syncMasterQuietly(mid);   // রুটিনের আজকের কাজ আর Pomodoro তে যোগ করা কাজ আগে মিলিয়ে নিই
+  const [all, todos] = await Promise.all([getRoutine(mid), getTodos(mid)]);
   const blocks = all.filter((b) => !b.date);   // সাপ্তাহিক
   const dated = all.filter((b) => b.date);     // নির্দিষ্ট তারিখের (আজ থেকে সামনের)
   const today = todayBD();
@@ -26,13 +30,17 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
   }));
   // ফোনে আজকের দিনটা আগে
   const ordered = [...days.slice(days.findIndex((d) => d.code === todayCode)), ...days.slice(0, days.findIndex((d) => d.code === todayCode))];
-  const datedDays = [...new Set(dated.map((b) => b.date!))].map((date) => ({ date, rows: dated.filter((b) => b.date === date) }));
+  // আজ: রুটিনের ব্লক + সময় ছাড়া কাজ; সামনের দিন: তারিখের ব্লক + সেই দিনের কাজ
+  const now = buildToday(todaysBlocks(all, todayCode, today), [...todos.open, ...todos.done], today, nowHHMM());
+  const later = laterTasks(todos.open, today);
+  const datedDays = [...new Set([...dated.map((b) => b.date!).filter((d) => d > today), ...later.keys()])].sort()
+    .map((date) => ({ date, rows: dated.filter((b) => b.date === date), tasks: later.get(date) ?? [] }));
   const plans = [...dated.reduce((m, b) => m.set(planName(b.title), (m.get(planName(b.title)) ?? 0) + 1), new Map<string, number>())]
     .filter(([, n]) => n > 1);
 
   const subtitle = [
     blocks.length ? `সপ্তাহে ${bnDigits(blocks.length)}টা ব্লক` : "",
-    datedDays.length ? `সামনের ${bnDigits(datedDays.length)} দিনের পরিকল্পনা` : "",
+    datedDays.length ? `সামনের ${bnDigits(datedDays.length)} দিনে পরিকল্পনা` : "",
   ].filter(Boolean).join(" · ");
 
   return (
@@ -49,13 +57,21 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
 
       {month ? await (async () => {
         const { from, to } = monthRange(month);
-        const { blocks: mb, statuses } = await getRoutineMonth(mid, from, to);
-        return <MonthCalendar month={month} weeks={buildMonth(month, today, mb, statuses)} selected={sp.d ?? null} />;
+        const { blocks: mb, statuses, tasks } = await getRoutineMonth(mid, from, to);
+        return <MonthCalendar month={month} weeks={buildMonth(month, today, mb, statuses, tasks)} selected={sp.d ?? null} />;
       })() : (<>
+
+      <section className="card card-pad rise -mt-2">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="font-semibold flex items-center gap-2"><Sun size={18} style={{ color: "var(--accent)" }} /> আজ · {fullDateBn()}</h2>
+          {now.total > 0 && <span className="chip chip-muted num">{bnDigits(now.done)}/{bnDigits(now.total)} শেষ</span>}
+        </div>
+        <TodayPlan blocks={now.blocks} tasks={now.tasks} today={today} canAdd />
+      </section>
 
       {datedDays.length > 0 && (
         <section>
-          <h2 className="font-semibold mb-3 flex items-center gap-2"><CalendarDays size={18} style={{ color: "var(--brand)" }} /> তারিখ অনুযায়ী পরিকল্পনা</h2>
+          <h2 className="font-semibold mb-3 flex items-center gap-2"><CalendarDays size={18} style={{ color: "var(--brand)" }} /> সামনের দিনগুলো</h2>
           {plans.length > 0 && (
             <ul className="flex flex-wrap gap-2 mb-3">{plans.map(([name, n]) => <PlanChip key={name} name={name} count={n} />)}</ul>
           )}
@@ -69,7 +85,13 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
                     <p className="text-[11px] font-medium opacity-80">{isToday ? "আজ" : humanDate(d.date).includes(" ") ? humanDate(d.date).split(" ")[1] : humanDate(d.date)}</p>
                     <p className="text-xl font-bold num leading-tight">{bnDigits(Number(d.date.slice(8)))}</p>
                   </div>
-                  <ul className="flex-1 min-w-0 space-y-2">{d.rows.map((b) => <EditableBlock key={b.id} b={b} today={today} />)}</ul>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    {d.rows.length > 0 && <ul className="space-y-2">{d.rows.map((b) => <EditableBlock key={b.id} b={b} today={today} />)}</ul>}
+                    {d.tasks.length > 0 && (
+                      <TodayPlan blocks={[]} today={today}
+                        tasks={d.tasks.map((t) => ({ id: t.id, task: t.task, due_date: t.due_date, priority: t.priority, done: false, overdue: false }))} />
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -77,13 +99,13 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
         </section>
       )}
 
-      {blocks.length === 0 && datedDays.length === 0 ? (
+      {blocks.length === 0 && datedDays.length === 0 && now.total === 0 ? (
         <div className="card card-pad max-w-xl">
           <Empty text="এখনো কোনো রুটিন নেই। উপরের “নতুন ব্লক” দিয়ে নিজে যোগ করো, অথবা বটকে বলো — কথা বলে সাজিয়ে দেবে:"
             example="আমার একটা পড়ার রুটিন বানিয়ে দাও, রাতে ৩ ঘণ্টা সময় পাই" />
         </div>
       ) : blocks.length === 0 ? (
-        <p className="text-sm muted">প্রতিটা দিনের ব্লক সেই দিনের কাজের লিস্টে আর Pomodoro তে চলে যায়। বদলাতে ব্লকটা চাপো, অথবা বটকে বলো।</p>
+        <p className="text-sm muted">প্রতিটা দিনের ব্লক আর কাজ Pomodoro তেও চলে যায়, যেকোনো জায়গায় শেষ করলে সবখানে শেষ। ব্লক বদলাতে চাপো, অথবা বটকে বলো।</p>
       ) : (
         <section>
           {datedDays.length > 0 && <h2 className="font-semibold mb-3 flex items-center gap-2"><Repeat size={18} style={{ color: "var(--brand)" }} /> প্রতি সপ্তাহের রুটিন</h2>}
@@ -114,7 +136,7 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
               </section>
             ))}
           </div>
-          <p className="text-sm muted mt-5">প্রতিটা ব্লক তার দিনে কাজের লিস্টে আর Pomodoro তে চলে যায়। বদলাতে ব্লকটা চাপো, অথবা বটকে বলো।</p>
+          <p className="text-sm muted mt-5">প্রতিটা ব্লক আর কাজ Pomodoro তেও চলে যায়, যেকোনো জায়গায় শেষ করলে সবখানে শেষ। ব্লক বদলাতে চাপো, অথবা বটকে বলো।</p>
         </section>
       )}
       </>)}

@@ -1,6 +1,6 @@
 "use client";
 // কম্পিউটারে বাঁ পাশের sidebar, ফোনে নিচের tab bar — একই লিংকগুলো
-import { CalendarClock, GraduationCap, HeartPulse, LayoutDashboard, ListChecks, LogOut, Newspaper, Settings } from "lucide-react";
+import { CalendarClock, GraduationCap, HeartPulse, LayoutDashboard, LogOut, Newspaper, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "./Logo";
@@ -8,7 +8,6 @@ import ThemeToggle from "./ThemeToggle";
 
 export const LINKS = [
   { href: "/", label: "ড্যাশবোর্ড", short: "হোম", Icon: LayoutDashboard },
-  { href: "/todo", label: "কাজের লিস্ট", short: "কাজ", Icon: ListChecks },
   { href: "/routine", label: "রুটিন", short: "রুটিন", Icon: CalendarClock },
   { href: "/news", label: "খবর", short: "খবর", Icon: Newspaper },
   { href: "/health", label: "স্বাস্থ্য", short: "স্বাস্থ্য", Icon: HeartPulse },
