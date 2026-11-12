@@ -72,13 +72,15 @@ async function TodayView({ mid, all, today, todayCode }: { mid: string; all: Awa
   return (
     <>
       <section className="card card-pad rise">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <h2 className="font-semibold">{fullDateBn()}</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold tracking-tight">{fullDateBn()}</h2>
           <span className="flex items-center gap-1">
-            {now.total > 0 && <span className="chip chip-muted num">{bnDigits(now.done)}/{bnDigits(now.total)} শেষ</span>}
+            {now.total > 0 && <span className="chip num font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{bnDigits(now.done)}/{bnDigits(now.total)} শেষ</span>}
             {!off && <DayOff off={false} today={today} />}
           </span>
         </div>
+        {now.total > 0 && <div className="pbar mt-3 mb-5" role="progressbar" aria-valuenow={now.done} aria-valuemax={now.total}><i style={{ width: `${Math.round((now.done / now.total) * 100)}%` }} /></div>}
+        {now.total === 0 && <div className="mb-3" />}
         {off && <DayOff off today={today} />}
         <TodayPlan blocks={now.blocks} tasks={now.tasks} today={today} canAdd />
         {now.total === 0 && (

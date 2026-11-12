@@ -1,7 +1,7 @@
 "use client";
 // "আজ": রুটিনের ব্লক (সময় ধরে) আর সময় ছাড়া কাজ এক তালিকায়, টিক দিলে বট, পোর্টাল আর Pomodoro সবখানে শেষ।
 // নতুন কাজ এখানেই যোগ হয় (কাজের আলাদা পেজ নেই)।
-import { CalendarPlus, Check, Flame, Plus, Trash2 } from "lucide-react";
+import { CalendarPlus, Check, Clock, Flame, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { humanDate, humanTime } from "@/lib/bn";
@@ -104,22 +104,24 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
       )}
 
       {blocks.length > 0 && (
-        <ol className="relative space-y-1">
-          <span className="absolute left-[13px] top-4 bottom-4 w-px" style={{ background: "var(--line)" }} />
+        <ol className="space-y-2">
           {blocks.map((b) => {
             const key = `b${b.id}`, done = isDone(key, b.done);
+            const live = b.live && !done;
             return (
-              <li key={b.id} className={`relative flex items-start gap-3 py-1.5 rounded-xl ${party[key] && done ? "done-row" : ""}`}
-                style={{ opacity: b.past && !b.live && !done ? 0.6 : 1 }}>
+              <li key={b.id} className={`prow ${party[key] && done ? "done-row" : ""}`} data-live={live} data-done={done}
+                style={{ opacity: b.past && !b.live && !done ? 0.65 : 1 }}>
                 <Tick done={done} live={b.live} disabled={!b.todoId} celebrate={party[key] ?? 0} label={done ? `${b.title}: আবার খোলো` : `${b.title}: শেষ`}
                   onClick={(e) => b.todoId && toggle(key, b.todoId, b.done, e)} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs num muted">
-                    {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
-                    {splitTitle(b.title).plan && <span className="ml-1.5">· {splitTitle(b.title).plan}</span>}
-                    {b.live && !done && <span className="chip text-[11px] py-0 ml-2">এখন</span>}
-                  </p>
-                  <p className={`text-[15px] leading-snug break-words ${b.live && !done ? "font-semibold" : ""}`}>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="ptime num" style={live ? { color: "var(--brand)" } : undefined}>
+                      <Clock size={12} /> {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
+                    </span>
+                    {splitTitle(b.title).plan && <span className="pplan">{splitTitle(b.title).plan}</span>}
+                    {live && <span className="chip text-[11px] py-0 font-semibold">● এখন</span>}
+                  </div>
+                  <p className={`mt-1 text-base leading-snug break-words ${live ? "font-semibold" : "font-medium"}`}>
                     <span className="strike" data-done={done}>{splitTitle(b.title).main}</span>
                   </p>
                 </div>
@@ -130,13 +132,13 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
       )}
 
       {tasks.length > 0 && (
-        <div className={blocks.length ? "mt-4 pt-3 border-t" : ""} style={{ borderColor: "var(--line)" }}>
-          {blocks.length > 0 && <p className="eyebrow mb-1">সময় ছাড়া কাজ</p>}
-          <ul>
+        <div className={blocks.length ? "mt-5" : ""}>
+          {blocks.length > 0 && <p className="eyebrow mb-2 uppercase tracking-wide">সময় ছাড়া কাজ</p>}
+          <ul className="space-y-2">
             {tasks.filter((t) => !hidden.includes(t.id)).map((t) => {
               const key = `t${t.id}`, done = isDone(key, t.done);
               return (
-              <li key={t.id} className={`group flex items-start gap-3 py-1.5 rounded-xl ${party[key] && done ? "done-row" : ""}`}>
+              <li key={t.id} className={`prow group ${party[key] && done ? "done-row" : ""}`} data-done={done}>
                 <Tick done={done} accent={!!t.priority} celebrate={party[key] ?? 0} label={done ? `${t.task}: আবার খোলো` : `${t.task}: শেষ`}
                   onClick={(e) => toggle(key, t.id, t.done, e)} />
                 <span className="flex-1 min-w-0 text-[15px] leading-snug pt-1 break-words"><span className="strike" data-done={done}>{t.task}</span></span>
