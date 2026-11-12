@@ -68,7 +68,8 @@ export function TabBar() {
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-20 border-t backdrop-blur-md"
       style={{ background: "color-mix(in srgb, var(--surface) 90%, transparent)", borderColor: "var(--line)", paddingBottom: "env(safe-area-inset-bottom)" }}>
-      <div className="grid grid-cols-6 max-w-lg mx-auto">
+      {/* ঘরের সংখ্যা লিংকের সংখ্যা থেকে: tab কমলে/বাড়লেও দুই পাশে সমান জায়গা থাকে */}
+      <div className="grid max-w-lg mx-auto px-2" style={{ gridTemplateColumns: `repeat(${LINKS.length}, minmax(0, 1fr))` }}>
         {LINKS.map(({ href, short, Icon }) => {
           const active = isActive(path, href);
           return (
