@@ -1,10 +1,11 @@
 // ড্যাশবোর্ড: এক নজরে আজকের সবকিছু
-import { Bell, CalendarClock, ChevronRight, CircleCheck, HeartPulse, ListChecks, Sparkles } from "lucide-react";
+import { Bell, CalendarClock, ChevronRight, CircleCheck, HeartPulse, ListChecks, Newspaper, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { requireMasterId } from "@/lib/session";
 import { getHealthLogs, getReminders, getRoutine, getSubscription, getTodos, getUser, isOverdue, todaysBlocks } from "@/lib/data";
 import { DAY_ORDER, bnDigits, fullDateBn, greeting, humanDate, humanDateTime, humanTime, nowBD, nowHHMM, todayBD } from "@/lib/bn";
 import { metricBn, valueText } from "@/lib/health";
+import { getNews, timeAgo, type NewsItem } from "@/lib/news";
 import { CardHead, Empty } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,8 @@ export default async function Dashboard() {
   const [user, todos, routine, reminders, sub, health] = await Promise.all([
     getUser(mid), getTodos(mid), getRoutine(mid), getReminders(mid), getSubscription(mid), getHealthLogs(mid, 14),
   ]);
+  const firstTopic = (user?.news_topics ?? "").split(",")[0]?.trim() ?? "";
+  const news = (await getNews(firstTopic).catch(() => ({ items: [] as NewsItem[] }))).items.slice(0, 4);
   const now = nowBD();
   const today = todayBD();
   const hhmm = nowHHMM(now);
@@ -151,6 +154,23 @@ export default async function Dashboard() {
             </div>
           )}
         </section>
+
+        {news.length > 0 && (
+          <section className="card card-pad lg:col-span-5 rise" style={{ animationDelay: "360ms" }}>
+            <CardHead title={firstTopic ? `আজকের খবর · ${firstTopic}` : "আজকের খবর"} Icon={Newspaper}
+              action={<Link href={firstTopic ? `/news?t=${encodeURIComponent(firstTopic)}` : "/news"} className="link">আরও <ChevronRight size={16} /></Link>} />
+            <ul className="grid gap-x-6 sm:grid-cols-2">
+              {news.map((n) => (
+                <li key={n.link} className="border-t first:border-t-0 sm:[&:nth-child(2)]:border-t-0 py-3" style={{ borderColor: "var(--line)" }}>
+                  <a href={n.link} target="_blank" rel="noopener noreferrer" className="block group">
+                    <p className="font-medium leading-snug group-hover:underline underline-offset-4">{n.title}</p>
+                    <p className="text-xs muted mt-1">{n.source} · {timeAgo(n.at)}</p>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </div>
   );

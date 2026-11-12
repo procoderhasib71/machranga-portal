@@ -1,6 +1,6 @@
 "use client";
 // কম্পিউটারে বাঁ পাশের sidebar, ফোনে নিচের tab bar — একই লিংকগুলো
-import { CalendarClock, GraduationCap, HeartPulse, LayoutDashboard, ListChecks, LogOut, Settings } from "lucide-react";
+import { CalendarClock, GraduationCap, HeartPulse, LayoutDashboard, ListChecks, LogOut, Newspaper, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "./Logo";
@@ -10,6 +10,7 @@ export const LINKS = [
   { href: "/", label: "ড্যাশবোর্ড", short: "হোম", Icon: LayoutDashboard },
   { href: "/todo", label: "কাজের লিস্ট", short: "কাজ", Icon: ListChecks },
   { href: "/routine", label: "রুটিন", short: "রুটিন", Icon: CalendarClock },
+  { href: "/news", label: "খবর", short: "খবর", Icon: Newspaper },
   { href: "/health", label: "স্বাস্থ্য", short: "স্বাস্থ্য", Icon: HeartPulse },
   { href: "/study", label: "পড়াশোনা", short: "পড়া", Icon: GraduationCap },
 ];
@@ -68,14 +69,14 @@ export function TabBar() {
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-20 border-t backdrop-blur-md"
       style={{ background: "color-mix(in srgb, var(--surface) 90%, transparent)", borderColor: "var(--line)", paddingBottom: "env(safe-area-inset-bottom)" }}>
-      <div className="grid grid-cols-5 max-w-lg mx-auto">
+      <div className="grid grid-cols-6 max-w-lg mx-auto">
         {LINKS.map(({ href, short, Icon }) => {
           const active = isActive(path, href);
           return (
             <Link key={href} href={href} aria-current={active ? "page" : undefined}
               className="flex flex-col items-center gap-0.5 pt-2.5 pb-2 text-[11px] font-medium"
               style={{ color: active ? "var(--brand)" : "var(--faint)" }}>
-              <span className="inline-flex items-center justify-center h-7 w-12 rounded-full transition-colors"
+              <span className="inline-flex items-center justify-center h-7 w-11 rounded-full transition-colors"
                 style={active ? { background: "var(--brand-soft)" } : undefined}>
                 <Icon size={20} strokeWidth={active ? 2.3 : 1.9} />
               </span>
