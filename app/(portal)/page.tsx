@@ -7,6 +7,7 @@ import { DAY_ORDER, bnDigits, fullDateBn, greeting, humanDate, humanDateTime, hu
 import { metricBn, valueText } from "@/lib/health";
 import { getNews, timeAgo, type NewsItem } from "@/lib/news";
 import { CardHead, Empty } from "@/components/PageHeader";
+import RoutineToday from "@/components/RoutineToday";
 
 export const dynamic = "force-dynamic";
 
@@ -34,9 +35,18 @@ export default async function Dashboard() {
   const blocks = todaysBlocks(routine, dayCode);
   const current = blocks.find((b) => b.start_time <= hhmm && (b.end_time ? hhmm < b.end_time : false));
   const nextBlock = blocks.find((b) => b.start_time > hhmm);
-  const doneToday = todos.done.filter((t) => (t.done_at ?? "").startsWith(today)).length;
-  const openNow = todos.open.filter((t) => !t.routine_id || (t.due_date ?? "") <= today);   // রুটিনের সামনের দিনের কাজ বাদ
+  // রুটিনের কাজ "আজকের রুটিন" এ টিকসহ দেখাই, তাই "আজকের কাজ" এ শুধু সাধারণ কাজ
+  const doneToday = todos.done.filter((t) => !t.routine_id && (t.done_at ?? "").startsWith(today)).length;
+  const openNow = todos.open.filter((t) => !t.routine_id);
   const total = doneToday + openNow.length;
+  const routineTodo = new Map([...todos.open, ...todos.done]
+    .filter((t) => t.routine_id && t.due_date === today).map((t) => [t.routine_id!, t]));
+  const todayBlocks = blocks.map((b) => {
+    const t = routineTodo.get(b.id);
+    return { id: b.id, start_time: b.start_time, end_time: b.end_time, title: b.title, note: b.note,
+      todoId: t?.id ?? null, done: t?.status === "done", live: b === current, past: (b.end_time ?? b.start_time) <= hhmm };
+  });
+  const routineDone = todayBlocks.filter((b) => b.done).length;
   const pct = total ? Math.round((doneToday / total) * 100) : 0;
   const lastBp = health.filter((h) => h.metric === "bp").at(-1);
   const lastHealth = health.filter((h) => h.metric !== "symptom").at(-1);
@@ -52,7 +62,7 @@ export default async function Dashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Stat label="আজকের কাজ" value={total ? `${bnDigits(doneToday)}/${bnDigits(total)}` : "০"} sub={total ? `${bnDigits(pct)}% শেষ` : "লিস্ট ফাঁকা"} delay={40} />
-        <Stat label="আজকের রুটিন" value={`${bnDigits(blocks.length)}টা`} sub={nextBlock ? `পরেরটা ${humanTime(nextBlock.start_time)}` : blocks.length ? "আজকের সব শেষ" : "কোনো ব্লক নেই"} delay={80} />
+        <Stat label="আজকের রুটিন" value={blocks.length ? `${bnDigits(routineDone)}/${bnDigits(blocks.length)}` : "০"} sub={nextBlock ? `পরেরটা ${humanTime(nextBlock.start_time)}` : blocks.length ? "আজকের সব শেষ" : "কোনো ব্লক নেই"} delay={80} />
         <Stat label="পরের রিমাইন্ডার" value={nextReminder ? humanTime(nextReminder.trigger_time.slice(11, 16)).split(" ").at(-1)! : "—"}
           sub={nextReminder ? `${humanDate(nextReminder.trigger_time.slice(0, 10))} ${humanTime(nextReminder.trigger_time.slice(11, 16)).split(" ")[0]} · ${nextReminder.task}` : "কিছু নেই"}
           tone="accent" delay={120} />
@@ -102,21 +112,7 @@ export default async function Dashboard() {
           {blocks.length === 0 ? (
             <Empty text="আজকের জন্য কোনো ব্লক নেই। বটকে বলো:" example="আমার একটা পড়ার রুটিন বানাও" />
           ) : (
-            <ol className="relative space-y-3 pl-5">
-              <span className="absolute left-[5px] top-2 bottom-2 w-px" style={{ background: "var(--line)" }} />
-              {blocks.map((b) => {
-                const past = (b.end_time ?? b.start_time) <= hhmm && b !== current;
-                const live = b === current;
-                return (
-                  <li key={b.id} className="relative" style={{ opacity: past ? 0.55 : 1 }}>
-                    <span className="absolute -left-5 top-1.5 size-[11px] rounded-full border-2"
-                      style={{ borderColor: live ? "var(--brand)" : "var(--faint)", background: live ? "var(--brand)" : "var(--surface)" }} />
-                    <p className="text-xs num muted">{humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}</p>
-                    <p className={`text-[15px] ${live ? "font-semibold" : ""}`}>{b.title}</p>
-                  </li>
-                );
-              })}
-            </ol>
+            <RoutineToday blocks={todayBlocks} />
           )}
         </section>
 

@@ -20,7 +20,8 @@ export function shortTime(hhmm: string): string {
   return bn(`${p} ${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : "টা"}`);
 }
 
-export const routineTitle = (b: RBlock) => `📅 ${b.title} · ${shortTime(b.start_time)}`;
+// 📅 রাখি না: Android এ ওটা "JUL 17" লেখা ক্যালেন্ডার হয়ে দেখায়, তারিখ মনে হয়
+export const routineTitle = (b: RBlock) => `${b.title} · ${shortTime(b.start_time)}`;
 
 export const appliesOn = (b: RBlock, day: string, dayCode: string) =>
   b.date ? b.date === day : b.days === "daily" || b.days.split(",").includes(dayCode);
