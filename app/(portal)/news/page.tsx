@@ -57,7 +57,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
             <h2 className="text-xl sm:text-2xl font-bold leading-snug mt-3 group-hover:underline decoration-2 underline-offset-4">{lead.title}</h2>
             <p className="link mt-3">পুরোটা পড়ো <ArrowUpRight size={16} /></p>
           </a>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rest.map((n, i) => (
               <a key={n.link} href={n.link} target="_blank" rel="noopener noreferrer"
                 className="card card-pad flex flex-col justify-between gap-3 rise group hover:border-[var(--faint)] transition-colors"

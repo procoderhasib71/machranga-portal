@@ -49,7 +49,7 @@ export default async function HealthPage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {charts.map((c, i) => {
           const last = c.series.map((s) => s.points.at(-1)?.y).filter((v) => v !== undefined) as number[];
           return (
@@ -69,7 +69,7 @@ export default async function HealthPage() {
         })}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {meds.length > 0 && (
           <section className="card card-pad">
             <CardHead title="চালু ওষুধ" Icon={Pill} />

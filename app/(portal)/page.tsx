@@ -75,7 +75,7 @@ export default async function Dashboard() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <section className="card card-pad lg:col-span-3 rise" style={{ animationDelay: "200ms" }}>
           <CardHead title="আজকের রুটিন" Icon={CalendarClock} action={<Link href="/routine" className="link">পুরোটা <ChevronRight size={16} /></Link>} />
           {plan.total === 0 ? (
@@ -125,7 +125,7 @@ export default async function Dashboard() {
           <section className="card card-pad lg:col-span-3 rise" style={{ animationDelay: "320ms" }}>
             <CardHead title={firstTopic ? `আজকের খবর · ${firstTopic}` : "আজকের খবর"} Icon={Newspaper}
               action={<Link href={firstTopic ? `/news?t=${encodeURIComponent(firstTopic)}` : "/news"} className="link">আরও <ChevronRight size={16} /></Link>} />
-            <ul className="grid gap-x-6 sm:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               {news.map((n) => (
                 <li key={n.link} className="border-t first:border-t-0 sm:[&:nth-child(2)]:border-t-0 py-3" style={{ borderColor: "var(--line)" }}>
                   <a href={n.link} target="_blank" rel="noopener noreferrer" className="block group">

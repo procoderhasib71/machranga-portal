@@ -11,7 +11,7 @@ export default async function PortalLayout({ children }: { children: React.React
       <Sidebar name={name} />
       <MobileBar />
       <div className="lg:pl-64">
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 pt-6 lg:pt-10 pb-tabbar">{children}</main>
+        <main className="max-w-6xl mx-auto min-w-0 overflow-x-clip px-4 sm:px-6 lg:px-10 pt-6 lg:pt-10 pb-tabbar">{children}</main>
       </div>
       <TabBar />
     </div>

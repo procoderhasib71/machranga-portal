@@ -3,7 +3,7 @@
 // নতুন কাজ এখানেই যোগ হয় (কাজের আলাদা পেজ নেই)।
 import { CalendarPlus, Check, Flame, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { humanDate, humanTime } from "@/lib/bn";
 import type { TodayBlock, TodayTask } from "@/lib/todayPlan";
 
@@ -12,13 +12,24 @@ async function todo(payload: Record<string, unknown>) {
   if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error ?? "হলো না");
 }
 
-function Tick({ done, live, onClick, disabled, label, accent }: { done: boolean; live?: boolean; onClick: () => void; disabled: boolean; label: string; accent?: boolean }) {
+const BURST = ["var(--brand)", "var(--accent)", "var(--ok)", "var(--brand)", "var(--accent)", "var(--ok)", "var(--brand)", "var(--accent)"];
+
+function Tick({ done, live, onClick, disabled, label, accent, celebrate }: {
+  done: boolean; live?: boolean; onClick: () => void; disabled?: boolean; label: string; accent?: boolean; celebrate: number;
+}) {
   return (
-    <button type="button" disabled={disabled} onClick={onClick} aria-label={label} title={done ? "আবার খোলো" : "শেষ হলে চাপো"}
-      className="relative z-10 mt-0.5 size-[27px] shrink-0 rounded-full border-2 flex items-center justify-center transition-colors hover:bg-[var(--brand-soft)] disabled:cursor-default"
+    <button type="button" disabled={disabled} onClick={onClick} aria-label={label} aria-pressed={done} title={done ? "আবার খোলো" : "শেষ হলে চাপো"}
+      data-done={done}
+      className="tick z-10 mt-0.5 size-[27px] shrink-0 rounded-full border-2 flex items-center justify-center hover:bg-[var(--brand-soft)] disabled:cursor-default"
       style={{ borderColor: done || live ? "var(--brand)" : accent ? "var(--accent)" : "var(--faint)", background: done ? "var(--brand)" : "var(--surface)" }}>
-      {done ? <Check size={15} strokeWidth={3} style={{ color: "var(--brand-ink)" }} />
+      {done ? <Check key={celebrate} className="check" size={15} strokeWidth={3} style={{ color: "var(--brand-ink)" }} />
         : live ? <span className="size-2.5 rounded-full" style={{ background: "var(--brand)" }} /> : null}
+      {done && celebrate > 0 && (
+        <span key={`b${celebrate}`} aria-hidden>
+          <span className="ring" />
+          <span className="burst">{BURST.map((c, i) => <i key={i} style={{ "--a": `${i * 45}deg`, "--c": c } as React.CSSProperties} />)}</span>
+        </span>
+      )}
     </button>
   );
 }
@@ -30,6 +41,27 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
   const [task, setTask] = useState("");
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState(false);
+
+  // চাপলেই টিক বসে (সার্ভারের উত্তরের অপেক্ষা নেই); ব্যর্থ হলে আগের অবস্থায় ফেরে
+  const [local, setLocal] = useState<Record<string, boolean>>({});
+  const [party, setParty] = useState<Record<string, number>>({});
+  const busy = useRef(new Set<string>());
+  const isDone = (key: string, server: boolean) => local[key] ?? server;
+  const toggle = (key: string, id: number, server: boolean) => {
+    if (busy.current.has(key)) return;
+    const next = !isDone(key, server);
+    setLocal((m) => ({ ...m, [key]: next }));
+    if (next) {
+      setParty((m) => ({ ...m, [key]: (m[key] ?? 0) + 1 }));
+      try { navigator.vibrate?.(12); } catch {}
+    }
+    busy.current.add(key);
+    setError("");
+    todo({ action: next ? "complete" : "reopen", id })
+      .then(() => setTimeout(() => start(() => router.refresh()), 700))   // animation শেষ হলে তালিকা নতুন করে সাজাই
+      .catch((e) => { setLocal((m) => ({ ...m, [key]: !next })); setError(e instanceof Error ? e.message : "হলো না"); })
+      .finally(() => busy.current.delete(key));
+  };
 
   const act = (payload: Record<string, unknown>) => start(async () => {
     setError("");
@@ -51,19 +83,25 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
       {blocks.length > 0 && (
         <ol className="relative space-y-1">
           <span className="absolute left-[13px] top-4 bottom-4 w-px" style={{ background: "var(--line)" }} />
-          {blocks.map((b) => (
-            <li key={b.id} className="relative flex items-start gap-3 py-1.5" style={{ opacity: b.past && !b.live && !b.done ? 0.6 : 1 }}>
-              <Tick done={b.done} live={b.live} disabled={pending || !b.todoId} label={b.done ? `${b.title}: আবার খোলো` : `${b.title}: শেষ`}
-                onClick={() => b.todoId && act({ action: b.done ? "reopen" : "complete", id: b.todoId })} />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs num muted">
-                  {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
-                  {b.live && !b.done && <span className="chip text-[11px] py-0 ml-2">এখন</span>}
-                </p>
-                <p className={`text-[15px] leading-snug ${b.live ? "font-semibold" : ""} ${b.done ? "line-through faint" : ""}`}>{b.title}</p>
-              </div>
-            </li>
-          ))}
+          {blocks.map((b) => {
+            const key = `b${b.id}`, done = isDone(key, b.done);
+            return (
+              <li key={b.id} className={`relative flex items-start gap-3 py-1.5 rounded-xl ${party[key] && done ? "done-row" : ""}`}
+                style={{ opacity: b.past && !b.live && !done ? 0.6 : 1 }}>
+                <Tick done={done} live={b.live} disabled={!b.todoId} celebrate={party[key] ?? 0} label={done ? `${b.title}: আবার খোলো` : `${b.title}: শেষ`}
+                  onClick={() => b.todoId && toggle(key, b.todoId, b.done)} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs num muted">
+                    {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
+                    {b.live && !done && <span className="chip text-[11px] py-0 ml-2">এখন</span>}
+                  </p>
+                  <p className={`text-[15px] leading-snug break-words ${b.live && !done ? "font-semibold" : ""}`}>
+                    <span className="strike" data-done={done}>{b.title}</span>
+                  </p>
+                </div>
+              </li>
+            );
+          })}
         </ol>
       )}
 
@@ -71,19 +109,22 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
         <div className={blocks.length ? "mt-4 pt-3 border-t" : ""} style={{ borderColor: "var(--line)" }}>
           {blocks.length > 0 && <p className="eyebrow mb-1">সময় ছাড়া কাজ</p>}
           <ul>
-            {tasks.map((t) => (
-              <li key={t.id} className="group flex items-start gap-3 py-1.5">
-                <Tick done={t.done} disabled={pending} accent={!!t.priority} label={t.done ? `${t.task}: আবার খোলো` : `${t.task}: শেষ`}
-                  onClick={() => act({ action: t.done ? "reopen" : "complete", id: t.id })} />
-                <span className={`flex-1 min-w-0 text-[15px] leading-snug pt-1 ${t.done ? "line-through faint" : ""}`}>{t.task}</span>
-                {!t.done && t.priority ? <span className="chip chip-accent mt-0.5 hidden sm:inline-flex"><Flame size={12} /> জরুরি</span> : null}
-                {!t.done && t.overdue && <span className="chip chip-danger mt-0.5">{humanDate(t.due_date!)}</span>}
+            {tasks.map((t) => {
+              const key = `t${t.id}`, done = isDone(key, t.done);
+              return (
+              <li key={t.id} className={`group flex items-start gap-3 py-1.5 rounded-xl ${party[key] && done ? "done-row" : ""}`}>
+                <Tick done={done} accent={!!t.priority} celebrate={party[key] ?? 0} label={done ? `${t.task}: আবার খোলো` : `${t.task}: শেষ`}
+                  onClick={() => toggle(key, t.id, t.done)} />
+                <span className="flex-1 min-w-0 text-[15px] leading-snug pt-1 break-words"><span className="strike" data-done={done}>{t.task}</span></span>
+                {!done && t.priority ? <span className="chip chip-accent mt-0.5 hidden sm:inline-flex"><Flame size={12} /> জরুরি</span> : null}
+                {!done && t.overdue && <span className="chip chip-danger mt-0.5">{humanDate(t.due_date!)}</span>}
                 {canAdd && (
                   <button type="button" onClick={() => act({ action: "delete", id: t.id })} disabled={pending} title="বাদ দাও" aria-label={`${t.task} বাদ`}
                     className="btn-ghost rounded-lg sm:opacity-0 sm:group-hover:opacity-100"><Trash2 size={16} /></button>
                 )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}

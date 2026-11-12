@@ -204,3 +204,34 @@ textarea.field { resize: vertical; min-height: 4.5rem; }
 /* ফোনের নিচের tab bar এর জায়গা */
 .pb-tabbar { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
 @media (min-width: 1024px) { .pb-tabbar { padding-bottom: 2.5rem; } }
+
+/* ---------- টিক: চাপলেই বসে যায় (সার্ভারের অপেক্ষা না করে), সাথে ছোট উৎসব ---------- */
+.tick { position: relative; transition: background-color .2s, border-color .2s, transform .12s; -webkit-tap-highlight-color: transparent; }
+.tick:active { transform: scale(.88); }
+.tick[data-done="true"] { animation: tick-pop .4s cubic-bezier(.3, 1.7, .5, 1); }
+.tick .check path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: tick-draw .3s .06s ease-out forwards; }
+.tick .ring { position: absolute; inset: -3px; border-radius: 999px; border: 2px solid var(--brand); animation: tick-ring .55s ease-out forwards; pointer-events: none; }
+.tick .burst { position: absolute; inset: 0; pointer-events: none; }
+.tick .burst i {
+  position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; border-radius: 999px; background: var(--c);
+  transform: translate(-50%, -50%) rotate(var(--a)) translateY(0); animation: tick-burst .6s ease-out forwards;
+}
+@keyframes tick-pop { 0% { transform: scale(.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes tick-draw { to { stroke-dashoffset: 0; } }
+@keyframes tick-ring { from { opacity: .7; transform: scale(1); } to { opacity: 0; transform: scale(1.9); } }
+@keyframes tick-burst {
+  0% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-8px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-24px) scale(.3); }
+}
+/* লেখার ওপর বাঁ থেকে ডানে দাগ টানা */
+.strike {
+  background: linear-gradient(currentColor, currentColor) left 58% / 0% 1.5px no-repeat;
+  transition: background-size .35s ease-out, color .3s, opacity .3s;
+}
+.strike[data-done="true"] { background-size: 100% 1.5px; color: var(--faint); }
+.done-row { animation: done-row .5s ease-out; }
+@keyframes done-row { 0% { background: transparent; } 30% { background: var(--brand-soft); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .tick[data-done="true"], .tick .check path, .tick .ring, .tick .burst i, .done-row { animation: none; stroke-dashoffset: 0; }
+  .tick .ring, .tick .burst { display: none; }
+}
