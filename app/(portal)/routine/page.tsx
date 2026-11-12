@@ -2,7 +2,7 @@ import { CalendarClock, CalendarDays, CalendarRange, Columns3, List, Repeat, Sun
 import WeekPlanner from "@/components/WeekPlanner";
 import Link from "next/link";
 import { requireMasterId } from "@/lib/session";
-import { getPlanBlocks, getRoutine, getRoutineMonth, getTodos, todaysBlocks } from "@/lib/data";
+import { getDaysOff, getPlanBlocks, getRoutine, getRoutineMonth, getTodos, todaysBlocks } from "@/lib/data";
 import { buildPlans } from "@/lib/plans";
 import { buildToday, laterTasks } from "@/lib/todayPlan";
 import { syncMasterQuietly } from "@/lib/pomodoroSync";
@@ -11,7 +11,7 @@ import { buildMonth, monthRange, validMonth } from "@/lib/calendar";
 import MonthCalendar from "@/components/MonthCalendar";
 import { DAY_BN, DAY_ORDER, bnDigits, fullDateBn, humanDate, nowBD, nowHHMM, todayBD } from "@/lib/bn";
 import PageHeader, { Empty } from "@/components/PageHeader";
-import { EditableBlock, NewBlockButton, PlanCard } from "@/components/RoutineEditor";
+import { DayOff, EditableBlock, NewBlockButton, PlanCard } from "@/components/RoutineEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
   const view = sp.view === "month" ? "month" : sp.view === "week" ? "week" : "list";
   const month = view === "month" ? validMonth(sp.m, todayBD().slice(0, 7)) : null;
   await syncMasterQuietly(mid);   // রুটিনের আজকের কাজ আর Pomodoro তে যোগ করা কাজ আগে মিলিয়ে নিই
-  const [all, todos, planData] = await Promise.all([getRoutine(mid), getTodos(mid), getPlanBlocks(mid)]);
+  const [all, todos, planData, offToday] = await Promise.all([getRoutine(mid), getTodos(mid), getPlanBlocks(mid), getDaysOff(mid, todayBD(), todayBD())]);
   const blocks = all.filter((b) => !b.date);   // সাপ্তাহিক
   const dated = all.filter((b) => b.date);     // নির্দিষ্ট তারিখের (আজ থেকে সামনের)
   const today = todayBD();
@@ -33,7 +33,8 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
   // ফোনে আজকের দিনটা আগে
   const ordered = [...days.slice(days.findIndex((d) => d.code === todayCode)), ...days.slice(0, days.findIndex((d) => d.code === todayCode))];
   // আজ: রুটিনের ব্লক + সময় ছাড়া কাজ; সামনের দিন: তারিখের ব্লক + সেই দিনের কাজ
-  const now = buildToday(todaysBlocks(all, todayCode, today), [...todos.open, ...todos.done], today, nowHHMM());
+  const off = offToday.has(today);   // ছুটির দিনে সাপ্তাহিক ব্লক আজকের তালিকায় নেই
+  const now = buildToday(todaysBlocks(all, todayCode, today).filter((b) => b.date || !off), [...todos.open, ...todos.done], today, nowHHMM());
   const later = laterTasks(todos.open, today);
   const datedDays = [...new Set([...dated.map((b) => b.date!).filter((d) => d > today), ...later.keys()])].sort()
     .map((date) => ({ date, rows: dated.filter((b) => b.date === date), tasks: later.get(date) ?? [] }));
@@ -65,15 +66,19 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
           selected={DAY_ORDER.includes(sp.day as (typeof DAY_ORDER)[number]) ? sp.day! : todayCode} />
       ) : month ? await (async () => {
         const { from, to } = monthRange(month);
-        const { blocks: mb, statuses, tasks } = await getRoutineMonth(mid, from, to);
-        return <MonthCalendar month={month} weeks={buildMonth(month, today, mb, statuses, tasks)} selected={sp.d ?? null} />;
+        const [{ blocks: mb, statuses, tasks }, daysOff] = await Promise.all([getRoutineMonth(mid, from, to), getDaysOff(mid, from, to)]);
+        return <MonthCalendar month={month} weeks={buildMonth(month, today, mb, statuses, tasks, daysOff)} selected={sp.d ?? null} />;
       })() : (<>
 
       <section className="card card-pad rise -mt-2">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h2 className="font-semibold flex items-center gap-2"><Sun size={18} style={{ color: "var(--accent)" }} /> আজ · {fullDateBn()}</h2>
-          {now.total > 0 && <span className="chip chip-muted num">{bnDigits(now.done)}/{bnDigits(now.total)} শেষ</span>}
+          <span className="flex items-center gap-1">
+            {!off && <DayOff off={false} today={today} />}
+            {now.total > 0 && <span className="chip chip-muted num">{bnDigits(now.done)}/{bnDigits(now.total)} শেষ</span>}
+          </span>
         </div>
+        {off && <DayOff off today={today} />}
         <TodayPlan blocks={now.blocks} tasks={now.tasks} today={today} canAdd />
       </section>
 

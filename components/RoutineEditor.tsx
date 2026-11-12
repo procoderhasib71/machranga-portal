@@ -1,12 +1,13 @@
 "use client";
 // রুটিন পেজের বদলানোর অংশ: ব্লক চাপলে ফর্ম খোলে (বদলাও/মুছো), নতুন ব্লক, আর পুরো পরিকল্পনা একসাথে মোছা
-import { BellOff, CalendarDays, Copy, Pencil, Plus, Repeat, Trash2, X } from "lucide-react";
+import { BellOff, CalendarDays, Copy, LayoutTemplate, Pencil, Plus, Repeat, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { DAY_BN, DAY_ORDER, bnDigits, humanTime } from "@/lib/bn";
+import { DAY_BN, DAY_ORDER, bnDigits, daysBn, humanTime } from "@/lib/bn";
 import type { RoutineBlock } from "@/lib/data";
 import type { PlanDayStatus, PlanSummary } from "@/lib/plans";
+import { TEMPLATES, type Template } from "@/lib/templates";
 import Switch from "./Switch";
 
 async function call(payload: Record<string, unknown>) {
@@ -295,5 +296,121 @@ export function PlanCard({ plan, today }: { plan: PlanSummary; today: string }) 
       </div>
       {error && <p className="text-xs mt-2" style={{ color: "var(--danger)" }}>{error}</p>}
     </li>
+  );
+}
+
+/** "আজ ছুটি": সেই দিনে সাপ্তাহিক রুটিন বন্ধ (মনে করানো, ✅ খোঁজ, Pomodoro র কাজ)। তারিখের পড়ার পরিকল্পনা চলে। */
+export function DayOff({ off, today }: { off: boolean; today: string }) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState(today);
+  const { pending, error, run } = useAction(() => setOpen(false));
+  if (off) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl px-3.5 py-3 mb-3" style={{ background: "var(--accent-soft)" }}>
+        <span className="text-xl" aria-hidden>🌴</span>
+        <p className="flex-1 min-w-0 text-sm"><b>আজ ছুটি।</b> <span className="muted">সাপ্তাহিক রুটিন বন্ধ, কাল থেকে আবার চলবে।</span></p>
+        <button type="button" disabled={pending} onClick={() => run({ action: "day_off", date: today, off: false })} className="btn-outline text-sm py-1.5 px-3 shrink-0">
+          ছুটি বাতিল
+        </button>
+      </div>
+    );
+  }
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="btn-ghost text-sm rounded-lg px-2.5 py-1.5" title="এক দিনের জন্য সাপ্তাহিক রুটিন বন্ধ">
+        🌴 ছুটি
+      </button>
+      {open && (
+        <Sheet title="ছুটির দিন" onClose={() => setOpen(false)}>
+          <p className="text-sm muted mb-4">
+            সেদিন সাপ্তাহিক রুটিনের মনে করানো, শেষের ✅ খোঁজ আর Pomodoro র কাজ বন্ধ থাকবে; পরদিন থেকে আবার চলবে।
+            তারিখের পড়ার পরিকল্পনা (যেমন &ldquo;দিন ৩&rdquo;) থামবে না।
+          </p>
+          <label className="label">কোন দিন
+            <input className="field" type="date" value={date} min={today} onChange={(e) => setDate(e.target.value)} />
+          </label>
+          {error && <p className="text-sm rounded-xl p-3 mt-3" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>{error}</p>}
+          <div className="flex items-center gap-2 mt-5">
+            <button type="button" onClick={() => setOpen(false)} className="btn-outline ml-auto">থাক</button>
+            <button type="button" disabled={pending} onClick={() => run({ action: "day_off", date, off: true })} className="btn-primary">
+              🌴 {date === today ? "আজ ছুটি" : "ছুটি দাও"}
+            </button>
+          </div>
+        </Sheet>
+      )}
+    </>
+  );
+}
+
+/** তৈরি টেমপ্লেট থেকে সাপ্তাহিক রুটিন: বেছে নাও → পুরো সপ্তাহ দেখো → আগেরটার জায়গায় বা পাশে রাখো */
+export function TemplatePicker({ hasWeekly, className = "btn-outline" }: { hasWeekly: boolean; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const [pick, setPick] = useState<Template | null>(null);
+  const [mode, setMode] = useState<"replace" | "add">(hasWeekly ? "replace" : "add");
+  const { pending, error, run } = useAction(() => { setOpen(false); setPick(null); });
+  const close = () => { setOpen(false); setPick(null); };
+  // একই বারের ব্লকগুলো একসাথে: "শনি–বৃহস্পতি", "প্রতিদিন", "শুক্র"
+  const groups = pick ? [...pick.blocks.reduce((m, b) => m.set(b.days, [...(m.get(b.days) ?? []), b]), new Map<string, Template["blocks"]>())] : [];
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={className}><LayoutTemplate size={16} /> টেমপ্লেট</button>
+      {open && (
+        <Sheet title={pick ? `${pick.emoji} ${pick.name}` : "তৈরি সাপ্তাহিক রুটিন"} onClose={close}>
+          {!pick ? (
+            <>
+              <p className="text-sm muted mb-3">একটা বেছে নাও, পরে যেকোনো ব্লকের সময় বা নাম বদলাতে পারবে।</p>
+              <ul className="space-y-2">
+                {TEMPLATES.map((t) => (
+                  <li key={t.id}>
+                    <button type="button" onClick={() => setPick(t)}
+                      className="w-full text-left rounded-xl p-3.5 flex gap-3 items-start transition-colors hover:bg-[var(--brand-soft)]" style={{ background: "var(--surface-2)" }}>
+                      <span className="text-2xl leading-none" aria-hidden>{t.emoji}</span>
+                      <span className="min-w-0">
+                        <span className="block font-semibold">{t.name} <span className="muted font-normal text-xs num">· {bnDigits(t.blocks.length)}টা ব্লক</span></span>
+                        <span className="block text-sm muted mt-0.5">{t.desc}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <>
+              <div className="space-y-3 max-h-[45dvh] overflow-y-auto pr-1">
+                {groups.map(([days, rows]) => (
+                  <div key={days}>
+                    <p className="eyebrow mb-1">{daysBn(days)}</p>
+                    <ul className="space-y-1">
+                      {rows.sort((a, b) => a.start.localeCompare(b.start)).map((b) => (
+                        <li key={b.title + b.start} className="flex gap-3 text-sm rounded-lg px-3 py-2" style={{ background: "var(--surface-2)" }}>
+                          <span className="num muted shrink-0 w-[7.5rem]">{humanTime(b.start)}{b.end ? `–${humanTime(b.end).split(" ")[1]}` : ""}</span>
+                          <span className="font-medium">{b.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              {hasWeekly && (
+                <div className="seg mt-4">
+                  <button type="button" aria-pressed={mode === "replace"} onClick={() => setMode("replace")}>আগেরটার জায়গায়</button>
+                  <button type="button" aria-pressed={mode === "add"} onClick={() => setMode("add")}>পাশে যোগ</button>
+                </div>
+              )}
+              <p className="text-xs muted mt-2">
+                {hasWeekly && mode === "replace" ? "আগের সাপ্তাহিক রুটিন সরে যাবে; তারিখের পড়ার পরিকল্পনা থাকবে।" : "আগের রুটিন থাকবে, একই ব্লক দুবার বসবে না।"}
+              </p>
+              {error && <p className="text-sm rounded-xl p-3 mt-3" style={{ background: "var(--danger-soft)", color: "var(--danger)" }}>{error}</p>}
+              <div className="flex items-center gap-2 mt-4">
+                <button type="button" onClick={() => setPick(null)} className="btn-ghost rounded-xl px-3">← অন্যটা</button>
+                <button type="button" disabled={pending} onClick={() => run({ action: "apply_template", id: pick.id, mode })} className="btn-primary ml-auto">
+                  {pending ? "রাখছি…" : "এই রুটিন রাখো"}
+                </button>
+              </div>
+            </>
+          )}
+        </Sheet>
+      )}
+    </>
   );
 }

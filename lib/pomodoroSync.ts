@@ -28,13 +28,14 @@ function bdNow() {
 /** রুটিনের ব্লক থেকে কাজের লিস্টে কাজ বানানো/মেলানো (Pomodoro যুক্ত থাকুক বা না থাকুক); ফেরত দেয় কয়টা লেখা হলো */
 export async function syncRoutineTodos(masterId: string): Promise<number> {
   const { today, nowBd, dayCode } = bdNow();
-  const [blocks, todos] = await Promise.all([
+  const [blocks, todos, off] = await Promise.all([
     query<RBlock>("SELECT id, days, date, start_time, end_time, title FROM hermes_routine_blocks WHERE master_id = ?", [masterId]),
     query<RTodo>(
       "SELECT id, task, due_date, status, routine_id, routine_date FROM hermes_todos " +
       "WHERE master_id = ? AND routine_id IS NOT NULL AND (status = 'open' OR routine_date >= ?)", [masterId, today]),
+    query("SELECT 1 AS x FROM hermes_day_off WHERE master_id = ? AND date = ?", [masterId, today]),
   ]);
-  const ops = planRoutineTodos({ masterId, blocks, todos, today, dayCode, nowBd });
+  const ops = planRoutineTodos({ masterId, blocks, todos, today, dayCode, nowBd, dayOff: off.length > 0 });
   if (ops.length) await db().batch(ops, "write");
   return ops.length;
 }

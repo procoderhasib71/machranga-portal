@@ -63,3 +63,10 @@ test("তারিখের পরিকল্পনার পেরোনো �
   const ops = planRoutineTodos({ ...base, blocks: [block({ days: "once", date: "2026-11-11" })], todos: [rtodo({ routine_date: "2026-11-11", due_date: "2026-11-11" })] });
   assert.equal(ops.length, 0);
 });
+
+test("ছুটির দিনে সাপ্তাহিক ব্লকের আজকের কাজ হয় না (থাকলে সরে যায়), তারিখের পরিকল্পনা থাকে", () => {
+  const blocks = [block({ id: 1, days: "daily" }), block({ id: 2, days: "once", date: "2026-11-12", title: "দিন ১" })];
+  const ops = planRoutineTodos({ ...base, dayOff: true, blocks, todos: [rtodo({ id: 50, routine_id: 1 })] });
+  assert.deepEqual(kinds(ops), ["drop", "insert"]);
+  assert.equal(ops[1].args[4], 2);
+});

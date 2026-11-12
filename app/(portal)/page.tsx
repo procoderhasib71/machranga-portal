@@ -2,7 +2,7 @@
 import { Bell, CalendarClock, ChevronRight, CircleCheck, HeartPulse, Newspaper, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { requireMasterId } from "@/lib/session";
-import { getHealthLogs, getReminders, getRoutine, getSubscription, getTodos, getUser, todaysBlocks } from "@/lib/data";
+import { getDaysOff, getHealthLogs, getReminders, getRoutine, getSubscription, getTodos, getUser, todaysBlocks } from "@/lib/data";
 import { DAY_ORDER, bnDigits, fullDateBn, greeting, humanDate, humanDateTime, humanTime, nowBD, nowHHMM, todayBD } from "@/lib/bn";
 import { metricBn, valueText } from "@/lib/health";
 import { getNews, timeAgo, type NewsItem } from "@/lib/news";
@@ -37,7 +37,8 @@ export default async function Dashboard() {
   const today = todayBD();
   const hhmm = nowHHMM(now);
   const dayCode = DAY_ORDER[(now.getDay() + 1) % 7];   // JS: রবি=0 → আমাদের ক্রমে
-  const blocks = todaysBlocks(routine, dayCode);
+  const off = (await getDaysOff(mid, today, today)).has(today);
+  const blocks = todaysBlocks(routine, dayCode).filter((b) => b.date || !off);   // ছুটির দিনে সাপ্তাহিক বাদ
   // রুটিনের ব্লক আর সময় ছাড়া কাজ এক তালিকায় (কাজের আলাদা পেজ নেই)
   const plan = buildToday(blocks, [...todos.open, ...todos.done], today, hhmm);
   const current = plan.current;
@@ -79,6 +80,7 @@ export default async function Dashboard() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <section className="card card-pad lg:col-span-3 rise" style={{ animationDelay: "200ms" }}>
           <CardHead title="আজকের রুটিন" Icon={CalendarClock} action={<Link href="/routine" className="link">পুরোটা <ChevronRight size={16} /></Link>} />
+          {off && <p className="text-sm rounded-xl px-3 py-2 mb-3" style={{ background: "var(--accent-soft)" }}>🌴 আজ ছুটি: সাপ্তাহিক রুটিন বন্ধ</p>}
           {plan.total === 0 ? (
             <Empty text="আজ রুটিনে কিছু নেই। রুটিন পেজে কাজ লেখো, অথবা বটকে বলো:" example="আমার একটা পড়ার রুটিন বানাও" />
           ) : (

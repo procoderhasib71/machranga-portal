@@ -5,8 +5,12 @@ import { todayBD } from "@/lib/bn";
 import { DAY_CODES, MAX_BLOCKS, cleanBlock, copyDayPlan, planName } from "@/lib/routineEdit";
 import { syncMasterQuietly } from "@/lib/pomodoroSync";
 import { getMasterId } from "@/lib/session";
+import { TEMPLATES, templateRows } from "@/lib/templates";
 
 const bdNow = () => new Date().toLocaleString("sv-SE", { timeZone: "Asia/Dhaka" }).slice(0, 19);
+// ছুটি বাতিল হলে সেদিনের সাপ্তাহিক ব্লকের সরানো কাজ আবার খোলা (নইলে sync ভাবে ইউজার মুছেছে, আর বানায় না)
+const REVIVE_SQL = "UPDATE hermes_todos SET status = 'open', done_at = NULL WHERE master_id = ? AND routine_date = ? AND status = 'deleted' " +
+  "AND routine_id IN (SELECT id FROM hermes_routine_blocks WHERE master_id = ? AND date IS NULL)";
 const fail = (error: string, status = 400) => NextResponse.json({ ok: false, error }, { status });
 
 async function run(mid: string, body: Record<string, unknown>): Promise<NextResponse | null> {
@@ -54,7 +58,36 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
     for (const c of changes) await exec("UPDATE hermes_routine_blocks SET days = ? WHERE id = ? AND master_id = ?", [c.days, c.id, mid]);
     return null;
   }
-  return fail("action হবে add, update, delete, delete_plan বা copy_day");
+  if (action === "apply_template") {
+    // replace: আগের সাপ্তাহিক রুটিন সরিয়ে টেমপ্লেট; add: পাশে যোগ (একই ব্লক আবার না)। তারিখের পড়ার পরিকল্পনা ছোঁয় না।
+    const t = TEMPLATES.find((x) => x.id === String(body.id ?? ""));
+    if (!t) return fail("টেমপ্লেটটা পাওয়া যায়নি", 404);
+    const mode = body.mode === "replace" ? "replace" : "add";
+    const existing = await query<{ days: string; start_time: string; title: string }>(
+      "SELECT days, start_time, title FROM hermes_routine_blocks WHERE master_id = ? AND date IS NULL", [mid]);
+    const rows = templateRows(t, existing, mode);
+    const total = await one<{ n: number }>("SELECT COUNT(*) AS n FROM hermes_routine_blocks WHERE master_id = ?", [mid]);
+    const after = (total?.n ?? 0) - (mode === "replace" ? existing.length : 0) + rows.length;
+    if (after > MAX_BLOCKS) return fail(`রুটিনে ${MAX_BLOCKS}টার বেশি ব্লক রাখা যাবে না`);
+    if (mode === "replace") await exec("DELETE FROM hermes_routine_blocks WHERE master_id = ? AND date IS NULL", [mid]);
+    for (const b of rows) {
+      await exec("INSERT INTO hermes_routine_blocks (master_id, days, date, start_time, end_time, title, note, remind, created_at) VALUES (?, ?, NULL, ?, ?, ?, NULL, 1, ?)",
+        [mid, b.days, b.start, b.end ?? null, b.title, bdNow()]);
+    }
+    return null;
+  }
+  if (action === "day_off") {
+    // "আজ ছুটি" (বা সামনের কোনো দিন): সাপ্তাহিক রুটিন সেদিন বন্ধ, off=false দিলে আবার চালু
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body.date ?? "")) ? String(body.date) : todayBD();
+    if (date < todayBD()) return fail("পেরোনো দিনে ছুটি দেওয়া যায় না");
+    if (body.off === false) {
+      await exec("DELETE FROM hermes_day_off WHERE master_id = ? AND date = ?", [mid, date]);
+      await exec(REVIVE_SQL, [mid, date, mid]);
+    }
+    else await exec("INSERT OR IGNORE INTO hermes_day_off (master_id, date, created_at) VALUES (?, ?, ?)", [mid, date, bdNow()]);
+    return null;
+  }
+  return fail("action হবে add, update, delete, delete_plan, copy_day, day_off বা apply_template");
 }
 
 export async function POST(req: NextRequest) {

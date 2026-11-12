@@ -27,9 +27,9 @@ export const appliesOn = (b: RBlock, day: string, dayCode: string) =>
   b.date ? b.date === day : b.days === "daily" || b.days.split(",").includes(dayCode);
 
 export function planRoutineTodos(input: {
-  masterId: string; blocks: RBlock[]; todos: RTodo[]; today: string; dayCode: string; nowBd: string;
+  masterId: string; blocks: RBlock[]; todos: RTodo[]; today: string; dayCode: string; nowBd: string; dayOff?: boolean;
 }): DbOp[] {
-  const { masterId, blocks, todos, today, dayCode, nowBd } = input;
+  const { masterId, blocks, todos, today, dayCode, nowBd, dayOff = false } = input;
   const ops: DbOp[] = [];
   const byId = new Map(blocks.map((b) => [b.id, b]));
   const taken = new Set(todos.map((t) => `${t.routine_id}|${t.routine_date}`));
@@ -54,12 +54,12 @@ export function planRoutineTodos(input: {
       continue;
     }
     // সাপ্তাহিক: আগের দিনের না-করা কাজ, বা আজ আর এই ব্লকের দিন না হলে সরাই
-    if (t.routine_date < today || (t.routine_date === today && !appliesOn(b, today, dayCode))) { drop(t); continue; }
+    if (t.routine_date < today || (t.routine_date === today && (dayOff || !appliesOn(b, today, dayCode)))) { drop(t); continue; }
     if (t.task !== title) ops.push({ sql: "UPDATE hermes_todos SET task = ? WHERE id = ? AND master_id = ?", args: [title, t.id, masterId] });
   }
 
   for (const b of blocks) {
-    const day = b.date ? (b.date >= today ? b.date : null) : appliesOn(b, today, dayCode) ? today : null;
+    const day = b.date ? (b.date >= today ? b.date : null) : !dayOff && appliesOn(b, today, dayCode) ? today : null;   // ছুটির দিনে সাপ্তাহিক না
     if (!day || taken.has(`${b.id}|${day}`)) continue;
     taken.add(`${b.id}|${day}`);
     ops.push({

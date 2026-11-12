@@ -43,7 +43,7 @@ export default function MonthCalendar({ month, weeks, selected }: { month: strin
                   background: isSel ? "var(--brand-soft)" : undefined,
                 }}>
                 <span className={`num text-xs sm:text-sm text-center sm:text-left ${c.isToday ? "font-bold" : "font-medium"}`}
-                  style={{ color: c.isToday ? "var(--brand)" : undefined }}>{bnDigits(c.day)}</span>
+                  style={{ color: c.isToday ? "var(--brand)" : undefined }}>{bnDigits(c.day)}{c.off ? " 🌴" : ""}</span>
                 {/* ফোনে বিন্দু, বড় পর্দায় নাম */}
                 <span className="flex flex-wrap justify-center gap-[3px] mt-1 sm:hidden">
                   {c.items.slice(0, 4).map((i) => <span key={i.id} className="size-[6px] rounded-full" style={{ background: TONE[i.status].dot }} />)}
@@ -70,7 +70,7 @@ export default function MonthCalendar({ month, weeks, selected }: { month: strin
 
       {sel && (
         <section className="card card-pad rise">
-          <h3 className="font-semibold mb-3">{fullDateBn(new Date(`${sel.date}T00:00:00`))}</h3>
+          <h3 className="font-semibold mb-3">{fullDateBn(new Date(`${sel.date}T00:00:00`))}{sel.off ? " · 🌴 ছুটি (সাপ্তাহিক রুটিন বন্ধ)" : ""}</h3>
           {sel.items.length === 0 ? <p className="text-sm muted">এই দিনে কিছু নেই।</p> : (
             <ul className="space-y-2">
               {sel.items.map((i) => (

@@ -119,3 +119,9 @@ export async function getPlanBlocks(mid: string) {
   ]);
   return { blocks, statuses: new Map(todos.map((t) => [`${t.routine_id}|${t.routine_date}`, t.status])) };
 }
+
+/** "আজ ছুটি": এই দিনগুলোতে সাপ্তাহিক রুটিন চলে না */
+export async function getDaysOff(mid: string, from: string, to: string): Promise<Set<string>> {
+  const rows = await query<{ date: string }>("SELECT date FROM hermes_day_off WHERE master_id = ? AND date BETWEEN ? AND ?", [mid, from, to]);
+  return new Set(rows.map((r) => r.date));
+}

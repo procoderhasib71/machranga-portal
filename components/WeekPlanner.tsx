@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { DAY_BN, DAY_ORDER, bnDigits } from "@/lib/bn";
 import type { RoutineBlock } from "@/lib/data";
-import { CopyDayButton, EditableBlock, NewBlockButton } from "./RoutineEditor";
+import { CopyDayButton, EditableBlock, NewBlockButton, TemplatePicker } from "./RoutineEditor";
 
 const on = (b: RoutineBlock, code: string) => b.days === "daily" || b.days.split(",").includes(code);
 
@@ -20,7 +20,11 @@ export default function WeekPlanner({ blocks, today, todayCode, selected }: { bl
   const count = (code: string) => blocks.filter((b) => on(b, code)).length;
   return (
     <div className="space-y-4">
-      <p className="text-sm muted -mt-2">
+      <div className="flex flex-wrap items-center gap-2 -mt-2">
+        <TemplatePicker hasWeekly={blocks.length > 0} className="btn-outline py-2" />
+        <span className="text-xs muted">তৈরি রুটিন থেকে শুরু করো, তারপর নিজের মতো বদলাও</span>
+      </div>
+      <p className="text-sm muted">
         একবার সাজিয়ে রাখলে প্রতি সপ্তাহে নিজে চলে: সকালে আজকের প্ল্যান, শুরুতে মনে করানো, শেষে ✅, আর Pomodoro তে কাজ।
         একটা বার সাজিয়ে &ldquo;অন্য বারে কপি&rdquo; চাপলেই পুরো সপ্তাহ।
       </p>

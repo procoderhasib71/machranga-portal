@@ -6,7 +6,7 @@ export type CalStatus = "done" | "missed" | "today" | "upcoming" | "past";
 export type CalItem = { id: number; title: string; start_time: string; end_time: string | null; status: CalStatus; dated: boolean; kind: "block" | "task" };
 /** সময় ছাড়া কাজ (বট, পোর্টাল বা Pomodoro থেকে), যেদিনের তারিখ সেদিনে */
 export type CalTask = { id: number; task: string; due_date: string; status: string };
-export type CalCell = { date: string; day: number; inMonth: boolean; isToday: boolean; items: CalItem[] };
+export type CalCell = { date: string; day: number; inMonth: boolean; isToday: boolean; off: boolean; items: CalItem[] };
 
 const CODES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];   // JS getUTCDay ক্রম
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -33,7 +33,7 @@ export function monthRange(month: string): { from: string; to: string } {
 }
 
 /** statuses: `${block id}|${তারিখ}` → সেই দিনের কাজের status ('open' | 'done' | 'deleted') */
-export function buildMonth(month: string, today: string, blocks: CalBlock[], statuses: Map<string, string>, tasks: CalTask[] = []): CalCell[][] {
+export function buildMonth(month: string, today: string, blocks: CalBlock[], statuses: Map<string, string>, tasks: CalTask[] = [], daysOff: Set<string> = new Set()): CalCell[][] {
   const { from, to } = monthRange(month);
   const weeks: CalCell[][] = [];
   for (let d = at(from); iso(d) <= to; d.setUTCDate(d.getUTCDate() + 1)) {
@@ -41,7 +41,7 @@ export function buildMonth(month: string, today: string, blocks: CalBlock[], sta
     const code = CODES[d.getUTCDay()];
     const items = blocks
       .filter((b) => b.date ? b.date === date
-        : (b.days === "daily" || b.days.split(",").includes(code)) && (!b.created_at || b.created_at.slice(0, 10) <= date))
+        : !daysOff.has(date) && (b.days === "daily" || b.days.split(",").includes(code)) && (!b.created_at || b.created_at.slice(0, 10) <= date))
       .sort((a, b) => a.start_time.localeCompare(b.start_time))
       .map((b): CalItem => {
         const s = statuses.get(`${b.id}|${date}`);
@@ -56,7 +56,7 @@ export function buildMonth(month: string, today: string, blocks: CalBlock[], sta
         status: t.status === "done" ? "done" : date === today ? "today" : date > today ? "upcoming" : "missed",
       })));
     if (!weeks.length || weeks.at(-1)!.length === 7) weeks.push([]);
-    weeks.at(-1)!.push({ date, day: d.getUTCDate(), inMonth: date.startsWith(month), isToday: date === today, items });
+    weeks.at(-1)!.push({ date, day: d.getUTCDate(), inMonth: date.startsWith(month), isToday: date === today, off: daysOff.has(date), items });
   }
   return weeks;
 }
