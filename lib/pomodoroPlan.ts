@@ -66,6 +66,17 @@ function newTask(id: string, title: string, nowIso: string, extra: Partial<PomoT
   };
 }
 
+const BN = "০১২৩৪৫৬৭৮৯";
+const MONTHS = ["জানুয়ারি", "ফেব্রুয়ারি", "মার্চ", "এপ্রিল", "মে", "জুন", "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"];
+
+/** Pomodoro তে টাস্কের নাম: অ্যাপে নির্দিষ্ট তারিখের ঘর নেই (শুধু Today/Tomorrow/This Week/Planned), তাই রুটিনের কাজের নামের
+ *  শুরুতে তারিখ বসাই ("১৪ নভেম্বর · …")। পোর্টাল/বটে তারিখ আলাদা দেখায়, তাই to-do র নামে রাখি না। */
+export function pomoTitle(todo: Pick<TodoRow, "task" | "due_date" | "routine_id">): string {
+  if (!todo.routine_id || !todo.due_date) return todo.task;
+  const [, m, d] = todo.due_date.split("-").map(Number);
+  return `${String(d).replace(/\d/g, (x) => BN[Number(x)])} ${MONTHS[m - 1]} · ${todo.task}`;
+}
+
 const minutesOf = (hhmm: string) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
 
 export function plan(input: PlanInput): Plan {
@@ -118,7 +129,7 @@ export function plan(input: PlanInput): Plan {
       const id = `hermes-${todo.id}`;
       if (!map.has(id)) {
         const { list, dueDate } = listFor(todo.due_date, today);
-        tasks.push(newTask(id, todo.task, nowIso, {
+        tasks.push(newTask(id, pomoTitle(todo), nowIso, {
           list, dueDate, priority: todo.priority ? 3 : 0, ...extra(todo),
           ...(done ? { completed: true, completedAt: nowIso } : {}),
         }));
@@ -139,7 +150,7 @@ export function plan(input: PlanInput): Plan {
         changed++;
       } else if (todo.status === "open") {   // টাস্কের doc ই নেই (নতুন বা খালি): আবার বানাই
         const { list, dueDate } = listFor(todo.due_date, today);
-        tasks.push(newTask(todo.pomo_id, todo.task, nowIso, { list, dueDate, priority: todo.priority ? 3 : 0, ...extra(todo) }));
+        tasks.push(newTask(todo.pomo_id, pomoTitle(todo), nowIso, { list, dueDate, priority: todo.priority ? 3 : 0, ...extra(todo) }));
         tasksChanged = true; changed++;
       }
       continue;
@@ -166,8 +177,8 @@ export function plan(input: PlanInput): Plan {
     if (routine) {
       // রুটিনের কাজ: ব্লকই আসল, তাই নাম আর দিন এদিক থেকে যায়
       const { list, dueDate } = listFor(todo.due_date, today);
-      if (title !== todo.task || task.list !== list || (task.dueDate ?? null) !== dueDate) {
-        Object.assign(task, { title: todo.task, list, dueDate });
+      if (title !== pomoTitle(todo) || task.list !== list || (task.dueDate ?? null) !== dueDate) {
+        Object.assign(task, { title: pomoTitle(todo), list, dueDate });
         tasksChanged = true; changed++;
       }
     } else if (title && title !== todo.task) {

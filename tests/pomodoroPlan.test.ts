@@ -124,7 +124,7 @@ test("রুটিনের কাজের নাম/দিন পোর্ট�
   const r = { routine_id: 20, routine_date: "2026-11-14", due_date: "2026-11-14", pomo_id: "hermes-9" };
   const p = plan({ ...base, todos: [todo({ id: 9, task: "📅 নতুন নাম · রাত ৯টা", ...r })],
     tasks: [task({ id: "hermes-9", title: "📅 পুরনো নাম", list: "Today", dueDate: "Today" })] });
-  assert.equal(p.tasks[0].title, "📅 নতুন নাম · রাত ৯টা");
+  assert.equal(p.tasks[0].title, "১৪ নভেম্বর · 📅 নতুন নাম · রাত ৯টা");
   assert.equal(p.tasks[0].list, "This Week");
   assert.ok(p.tasksChanged);
   assert.ok(!p.ops.some((o) => o.sql.startsWith("UPDATE hermes_todos SET task")));
@@ -144,4 +144,12 @@ test("listFor: তারিখ অনুযায়ী Pomodoro র তাল�
   assert.deepEqual(listFor("2026-11-10", "2026-11-12"), { list: "Today", dueDate: "Today" });
   assert.deepEqual(listFor("2026-11-15", "2026-11-12"), { list: "This Week", dueDate: "This Week" });
   assert.deepEqual(listFor("2026-12-01", "2026-11-12"), { list: "Planned", dueDate: "Planned" });
+});
+
+test("Pomodoro তে রুটিনের কাজের নামের শুরুতে তারিখ (অ্যাপে তারিখের ঘর নেই), সাধারণ কাজে না", () => {
+  const r = { routine_id: 20, routine_date: "2026-11-14", due_date: "2026-11-14" };
+  const p = plan({ ...base, todos: [todo({ id: 9, task: "Cardiovascular: Arrhythmias · রাত ৮টা", ...r }), todo({ id: 10, due_date: "2026-11-14" })], tasks: [] });
+  assert.deepEqual(p.tasks.map((t) => t.title), ["১৪ নভেম্বর · Cardiovascular: Arrhythmias · রাত ৮টা", "বাজার করা"]);
+  const again = plan({ ...base, todos: [todo({ id: 9, task: "Cardiovascular: Arrhythmias · রাত ৮টা", pomo_id: "hermes-9", ...r })], tasks: [{ ...p.tasks[0] }] });
+  assert.equal(again.tasksChanged, false);   // পরের sync এ আর বদল নেই
 });
