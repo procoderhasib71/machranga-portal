@@ -32,7 +32,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
 
   return (
     <div>
-      <PageHeader title="খবর" subtitle={user?.news_time ? `প্রতিদিন ${user.news_time.replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[Number(d)])}-এ বটেও পাঠাই` : "বাংলা পত্রিকাগুলো থেকে, Google News এর মাধ্যমে"} Icon={Newspaper} />
+      <PageHeader title="খবর" subtitle={user?.news_time ? `প্রতিদিন ${user.news_time.replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[Number(d)])}-এ বটেও পাঠাই` : "প্রথম আলো, ইত্তেফাক, সমকাল, জনকণ্ঠ ও ইনকিলাব থেকে"} Icon={Newspaper} />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-5 rise">
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 flex-1" style={{ scrollbarWidth: "none" }}>

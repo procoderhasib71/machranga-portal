@@ -1,6 +1,7 @@
-// খবর: Google News এর বাংলা RSS (ফ্রি, কোনো key লাগে না) — বটের tools/news.py এর মতোই, তবে খবরের লিংকসহ।
-// একই hermes_news_cache টেবিলে ৩ ঘণ্টা রাখি ('web:' আলাদা key, কারণ বটের ক্যাশে লিংক থাকে না)।
-import { exec, one } from "./db";
+// খবর: আগে বটের cron এ জমা করা পত্রিকার খবর (hermes_news_items — প্রথম আলো, ইত্তেফাক, সমকাল, জনকণ্ঠ, ইনকিলাব),
+// না পেলে (বা বিষয় মেলাতে না পারলে) Google News এর বাংলা RSS। ব্যাকআপ hermes_news_cache এ ৩ ঘণ্টা রাখি ('web:' আলাদা key)।
+import { exec, one, query } from "./db";
+import { pickStored } from "./newsPick";
 
 const FEED_TOP = "https://news.google.com/rss?hl=bn&gl=BD&ceid=BD:bn";
 const FEED_SEARCH = (q: string) => `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=bn&gl=BD&ceid=BD:bn`;
@@ -29,8 +30,23 @@ function parse(xml: string): NewsItem[] {
   return items;
 }
 
+/** বটের জমানো খবর, নতুন আগে; টেবিল না থাকলে বা খালি হলে খালি তালিকা */
+async function getStored(topic: string): Promise<NewsItem[]> {
+  try {
+    const since = new Date(Date.now() - 36 * 3600 * 1000).toISOString().slice(0, 19).replace("T", " ");
+    const rows = await query<{ title: string; source: string; url: string; published_at: string }>(
+      "SELECT title, source, url, published_at FROM hermes_news_items WHERE published_at >= ? ORDER BY published_at DESC LIMIT 300", [since]);
+    return pickStored(rows, topic, MAX_ITEMS);
+  } catch (e) {
+    console.error("জমা খবর পড়া গেল না:", e);
+    return [];
+  }
+}
+
 export async function getNews(topic = ""): Promise<{ items: NewsItem[]; stale?: boolean; error?: string }> {
   const t = topic.trim().slice(0, 50);
+  const stored = await getStored(t);
+  if (stored.length >= (t ? 3 : 1)) return { items: stored };   // বিষয়ে ৩টার কম মিললে Google এও খুঁজি
   const key = t ? `web:t:${t.toLowerCase()}` : "web:top";
   const row = await one<{ items: string; fetched_at: string }>("SELECT items, fetched_at FROM hermes_news_cache WHERE key = ?", [key]);
   if (row && Date.now() - Date.parse(row.fetched_at) < CACHE_MS) return { items: JSON.parse(row.items) };
