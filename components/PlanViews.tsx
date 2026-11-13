@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, BookOpen, CalendarClock, Check, ChevronDown, Pencil
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { bnDigits, humanTime } from "@/lib/bn";
-import { BOOKS, GROUPS, LEVELS } from "@/lib/books";
+import { BOOKS, GROUPS, LEVELS, type Level } from "@/lib/books";
 import { buildExamPlan, groupDays } from "@/lib/examPlan";
 import { daysLeft, type PlanDay, type PlanSummary } from "@/lib/plans";
 import type { ChapterProgress, RoutineBlock } from "@/lib/data";
@@ -253,6 +253,7 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [book, setBook] = useState("");
+  const [level, setLevel] = useState<Level>("HSC");
   const [topics, setTopics] = useState("");
   // আজকের পড়ার সময় পেরিয়ে গেলে কাল থেকে (নইলে প্রথম দিনই "মিস")
   const nowHM = () => new Date().toLocaleString("sv-SE", { timeZone: "Asia/Dhaka" }).slice(11, 16);
@@ -268,9 +269,10 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
   const examDate = mode === "days" ? addDays(start, Math.max(1, daysN)) : exam;
   const preview = useMemo(() => buildExamPlan(name || "পড়া", topics.split(/\n|,|;/), examDate, start, rev), [name, topics, examDate, start, rev]);
   const pickBook = (id: string) => {
+    const prev = BOOKS.find((x) => x.id === book);
     setBook(id);
     const b = BOOKS.find((x) => x.id === id);
-    if (b) { setTopics(b.chapters.join("\n")); if (!name) setName(b.subject); }
+    if (b) { setTopics(b.chapters.join("\n")); if (!name || name === prev?.subject) setName(b.subject); }
   };
   const save = () => run({
     action: "create_plan", name, book: BOOKS.find((b) => b.id === book)?.name ?? "", topics, start_date: start, exam_date: examDate, is_exam: mode === "exam",
@@ -284,11 +286,19 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
       {open && (
         <Sheet title="নতুন পড়ার পরিকল্পনা" onClose={() => setOpen(false)}>
           <div className="space-y-4">
+            <div>
+              <span className="label mb-1.5">কোন স্তর</span>
+              <div className="seg">
+                {LEVELS.map((l) => (
+                  <button key={l.key} type="button" aria-pressed={level === l.key} onClick={() => { setLevel(l.key); setBook(""); }}>{l.label}</button>
+                ))}
+              </div>
+            </div>
             <label className="label">বিষয় <span className="font-normal muted">(বাছলে অধ্যায় নিজে বসবে)</span>
               <select className="field" value={book} onChange={(e) => pickBook(e.target.value)}>
                 <option value="">নিজে অধ্যায় লিখব</option>
-                {LEVELS.flatMap((l) => GROUPS.map((g) => ({ l, g, items: BOOKS.filter((b) => b.level === l.key && b.group === g) })).filter((x) => x.items.length)).map(({ l, g, items }) => (
-                  <optgroup key={`${l.key}-${g}`} label={`${l.key} · ${g}`}>
+                {GROUPS.map((g) => ({ g, items: BOOKS.filter((b) => b.level === level && b.group === g) })).filter((x) => x.items.length).map(({ g, items }) => (
+                  <optgroup key={g} label={g}>
                     {items.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </optgroup>
                 ))}
