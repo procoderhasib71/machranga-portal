@@ -101,6 +101,7 @@ function EditPlanButton({ plan, today }: { plan: PlanSummary; today: string }) {
       {open && (
         <Sheet title="পরিকল্পনা বদলাও" onClose={() => setOpen(false)}>
           <div className="space-y-4">
+            <p className="text-sm muted -mt-1">শুধু পড়া নয়, যেকোনো পরিকল্পনাই বানানো যায় — পরীক্ষার প্রস্তুতি, কোডিং, ফিটনেস, কাজের ধাপ, যা খুশি। বটকে বললেও হয়: যেমন “৩০ দিনে ফিজিক্স শেষ করার পরিকল্পনা বানাও”, সে নিজেই সাজিয়ে দেবে।</p>
             <label className="label">পরিকল্পনার নাম
               <input className="field" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
             </label>
@@ -284,7 +285,7 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
     <>
       <button type="button" onClick={() => setOpen(true)} className={className}><Plus size={18} /> নতুন পরিকল্পনা</button>
       {open && (
-        <Sheet title="নতুন পড়ার পরিকল্পনা" onClose={() => setOpen(false)}>
+        <Sheet title="নতুন পরিকল্পনা" onClose={() => setOpen(false)}>
           <div className="space-y-4">
             <div>
               <span className="label mb-1.5">কোন স্তর</span>
