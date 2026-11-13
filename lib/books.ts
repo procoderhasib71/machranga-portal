@@ -5,11 +5,12 @@ import hsc from "../data/books/hsc.json";
 import medical from "../data/books/medical.json";
 import general from "../data/books/general.json";
 
-export type Level = "SSC" | "HSC" | "Medical" | "General";
+export type Level = "Custom" | "SSC" | "HSC" | "Medical" | "General";
 type Row = { id: string; group: string; name: string; subject: string; chapters: string[] };
 export type Book = Row & { level: Level };
 
 export const LEVELS: { key: Level; label: string }[] = [
+  { key: "Custom", label: "Custom" },
   { key: "SSC", label: "SSC" },
   { key: "HSC", label: "HSC" },
   { key: "Medical", label: "Medical" },

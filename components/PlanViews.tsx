@@ -253,7 +253,7 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [book, setBook] = useState("");
-  const [level, setLevel] = useState<Level>("HSC");
+  const [level, setLevel] = useState<Level>("Custom");
   const [topics, setTopics] = useState("");
   // আজকের পড়ার সময় পেরিয়ে গেলে কাল থেকে (নইলে প্রথম দিনই "মিস")
   const nowHM = () => new Date().toLocaleString("sv-SE", { timeZone: "Asia/Dhaka" }).slice(11, 16);
@@ -294,6 +294,9 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
                 ))}
               </div>
             </div>
+            {level === "Custom" ? (
+              <p className="text-sm muted -mt-1">নিজের মতো বানাও: নিচে নাম আর অধ্যায় (বা ধাপ) লেখো। তৈরি বিষয় থেকে বাছতে উপরের SSC, HSC, Medical বা General চাপো।</p>
+            ) : (
             <label className="label">{level === "General" ? "কী শিখবে/করবে" : "বিষয়"} <span className="font-normal muted">({level === "General" ? "একটা বেছে নাও, অথবা নিচে নিজের মতো লেখো" : "বাছলে অধ্যায় নিজে বসবে"})</span>
               <select className="field" value={book} onChange={(e) => pickBook(e.target.value)}>
                 <option value="">নিজে অধ্যায় লিখব</option>
@@ -304,6 +307,7 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
                 ))}
               </select>
             </label>
+            )}
             <label className="label">পরিকল্পনার নাম
               <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: পদার্থবিজ্ঞান ১ম পত্র, এসএসসি গণিত" maxLength={80} />
             </label>
