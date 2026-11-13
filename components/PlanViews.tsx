@@ -294,7 +294,7 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
                 ))}
               </div>
             </div>
-            <label className="label">বিষয় <span className="font-normal muted">(বাছলে অধ্যায় নিজে বসবে)</span>
+            <label className="label">{level === "General" ? "কী শিখবে/করবে" : "বিষয়"} <span className="font-normal muted">({level === "General" ? "একটা বেছে নাও, অথবা নিচে নিজের মতো লেখো" : "বাছলে অধ্যায় নিজে বসবে"})</span>
               <select className="field" value={book} onChange={(e) => pickBook(e.target.value)}>
                 <option value="">নিজে অধ্যায় লিখব</option>
                 {GROUPS.map((g) => ({ g, items: BOOKS.filter((b) => b.level === level && b.group === g) })).filter((x) => x.items.length).map(({ g, items }) => (
