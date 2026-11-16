@@ -16,7 +16,7 @@ export const LINKS = [
 
 const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
-export function Sidebar({ name }: { name: string }) {
+export function Sidebar({ name, look }: { name: string; look?: { avatar: string; from: string; to: string } | null }) {
   const path = usePathname();
   const item = (href: string, label: string, Icon: typeof Settings) => {
     const active = isActive(path, href);
@@ -40,8 +40,13 @@ export function Sidebar({ name }: { name: string }) {
         {item("/settings", "সেটিংস", Settings)}
         <ThemeToggle />
         <div className="flex items-center gap-3 px-2 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
-          <span className="inline-flex size-9 items-center justify-center rounded-full font-semibold text-sm"
-            style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{name.slice(0, 1)}</span>
+          {look ? (
+            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-lg"
+              style={{ background: `linear-gradient(135deg, ${look.from}, ${look.to})` }}>{look.avatar}</span>
+          ) : (
+            <span className="inline-flex size-9 items-center justify-center rounded-full font-semibold text-sm"
+              style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{name.slice(0, 1)}</span>
+          )}
           <span className="flex-1 min-w-0 truncate text-sm font-medium">{name}</span>
           <a href="/logout" className="btn-ghost rounded-lg" title="বের হও" aria-label="বের হও"><LogOut size={18} /></a>
         </div>
