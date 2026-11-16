@@ -29,6 +29,7 @@ export function humanTime(hhmm: string): string {
   const m = /^(\d{1,2}):(\d{2})/.exec(hhmm ?? "");
   if (!m) return bnDigits(hhmm ?? "");
   const h = Number(m[1]);
+  if (h === 23 && m[2] === "59") return "রাত ১২:০০";   // দিনের শেষ ("রাত ১২টা পর্যন্ত")
   return bnDigits(`${period(h)} ${h % 12 || 12}:${m[2]}`);
 }
 

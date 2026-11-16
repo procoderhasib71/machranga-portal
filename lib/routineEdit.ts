@@ -20,8 +20,9 @@ export function cleanBlock(input: BlockInput, today: string): { ok: true; value:
   const start = time(input.start_time);
   if (!start) return { ok: false, error: "শুরুর সময় দাও" };
   const endRaw = String(input.end_time ?? "").trim();
-  const end = endRaw ? time(endRaw) : null;
+  let end = endRaw ? time(endRaw) : null;
   if (endRaw && !end) return { ok: false, error: "শেষের সময় ঠিক নেই" };
+  if (end === "00:00" && start > "00:00") end = "23:59";   // "রাত ১২টা পর্যন্ত" = দিনের শেষ
   if (end && end <= start) return { ok: false, error: "শেষের সময় শুরুর পরে হতে হবে" };
 
   let days: string;

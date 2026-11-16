@@ -80,3 +80,8 @@ test("পড়ার সময় শুধু সাপ্তাহিক ব�
   const d = cleanBlock({ title: "পড়া", kind: "date", date: "2026-11-12", start_time: "20:00", study_slot: true }, "2026-11-12");
   assert.ok(d.ok && d.value.study_slot === 0);
 });
+
+test("রাত ১২টা পর্যন্ত = দিনের শেষ", () => {
+  const r = cleanBlock({ title: "পড়া", kind: "weekly", days: ["SAT"], start_time: "21:00", end_time: "00:00" }, "2026-11-12");
+  assert.ok(r.ok && r.value.end_time === "23:59");
+});
