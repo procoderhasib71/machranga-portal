@@ -1,10 +1,11 @@
-import { HeartPulse, Pill, ShieldAlert, Thermometer } from "lucide-react";
+import { History, HeartPulse, Pill, PlusCircle, ShieldAlert, Thermometer } from "lucide-react";
 import { requireMasterId } from "@/lib/session";
 import { getHealthLogs, getMeds, getMoods, type HealthLog } from "@/lib/data";
-import { bnDigits, humanDateTime, humanTime } from "@/lib/bn";
+import { bnDigits, humanDateTime } from "@/lib/bn";
 import { numericValue, valueText } from "@/lib/health";
 import LineChart, { type Series } from "@/components/LineChart";
-import PageHeader, { CardHead, Empty } from "@/components/PageHeader";
+import PageHeader, { CardHead } from "@/components/PageHeader";
+import { AddLog, MedsEditor, RecentLogs } from "@/components/HealthEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -38,16 +39,19 @@ export default async function HealthPage() {
   ].filter((c) => c.series.some((s) => s.points.length > 0));
 
   const symptoms = of("symptom").slice(-8).reverse();
+  const recent = logs.slice(-10).reverse().map((l) => ({
+    id: l.id, time: humanDateTime(l.logged_at),
+    label: `${{ bp: "প্রেশার", sugar: "সুগার", weight: "ওজন", sleep: "ঘুম", water: "পানি", symptom: "উপসর্গ" }[l.metric] ?? l.metric}: ${valueText(l.metric, l.value_json, l.unit)}`,
+  }));
 
   return (
     <div className="space-y-4">
-      <PageHeader title="স্বাস্থ্য" subtitle="গত ৩০ দিনের মাপ — তুমি বটকে যা জানিয়েছ" Icon={HeartPulse} />
+      <PageHeader title="স্বাস্থ্য" subtitle="গত ৩০ দিনের মাপ — এখানে লেখো বা বটকে বলো, দুই জায়গাতেই থাকে" Icon={HeartPulse} />
 
-      {charts.length === 0 && symptoms.length === 0 && (
-        <div className="card card-pad max-w-xl">
-          <Empty text="এখনো কোনো মাপ নেই। বটকে বলো, চার্ট এখানে নিজে থেকে আসবে:" example="আজ প্রেশার ১৩০/৮৫" />
-        </div>
-      )}
+      <section className="card card-pad rise">
+        <CardHead title="নতুন মাপ লেখো" Icon={PlusCircle} accent />
+        <AddLog />
+      </section>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {charts.map((c, i) => {
@@ -70,19 +74,14 @@ export default async function HealthPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {meds.length > 0 && (
-          <section className="card card-pad">
-            <CardHead title="চালু ওষুধ" Icon={Pill} />
-            <ul className="space-y-3">
-              {meds.map((m, i) => (
-                <li key={i} className="flex items-start justify-between gap-3">
-                  <span><b>{m.name}</b>{m.dose && <span className="muted"> · {m.dose}</span>}</span>
-                  {m.times && <span className="flex flex-wrap justify-end gap-1">{m.times.split(",").map((t) => <span key={t} className="chip chip-muted num">{humanTime(t.trim())}</span>)}</span>}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <section className="card card-pad">
+          <CardHead title="চালু ওষুধ" Icon={Pill} />
+          <MedsEditor meds={meds} />
+        </section>
+        <section className="card card-pad">
+          <CardHead title="শেষ লেখা মাপ" Icon={History} />
+          <RecentLogs items={recent} />
+        </section>
         {symptoms.length > 0 && (
           <section className="card card-pad">
             <CardHead title="উপসর্গ" Icon={Thermometer} accent />

@@ -59,17 +59,17 @@ export async function getHealthLogs(mid: string, days = 30): Promise<HealthLog[]
     "AND logged_at >= date('now', ?) ORDER BY logged_at", [mid, `-${days} days`]);
 }
 
-export type Med = { name: string; dose: string | null; times: string | null; note: string | null };
+export type Med = { id: number; name: string; dose: string | null; times: string | null; note: string | null };
 
 export async function getMeds(mid: string): Promise<Med[]> {
-  return query<Med>("SELECT name, dose, times, note FROM hermes_medications WHERE master_id = ? AND active = 1 ORDER BY id", [mid]);
+  return query<Med>("SELECT id, name, dose, times, note FROM hermes_medications WHERE master_id = ? AND active = 1 ORDER BY id", [mid]);
 }
 
-export type MoodLog = { score: number; note: string | null; logged_at: string };
+export type MoodLog = { id: number; score: number; note: string | null; logged_at: string };
 
 export async function getMoods(mid: string, days = 30): Promise<MoodLog[]> {
   return query<MoodLog>(
-    "SELECT score, note, logged_at FROM hermes_mood_logs WHERE master_id = ? AND logged_at >= date('now', ?) ORDER BY logged_at",
+    "SELECT id, score, note, logged_at FROM hermes_mood_logs WHERE master_id = ? AND logged_at >= date('now', ?) ORDER BY logged_at",
     [mid, `-${days} days`]);
 }
 

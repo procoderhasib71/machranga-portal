@@ -113,7 +113,7 @@ export default async function Dashboard() {
               <p className="text-xs muted mt-1">{humanDateTime(lastHealth.logged_at)}</p>
             </div>
           ) : (
-            <Empty text="গত ২ সপ্তাহে কোনো মাপ নেই। বটকে বলো:" example="আজ প্রেশার ১৩০/৮৫" />
+            <Empty text="গত ২ সপ্তাহে কোনো মাপ নেই। স্বাস্থ্য পেজে লেখো, অথবা বটকে বলো:" example="আজ প্রেশার ১৩০/৮৫" />
           )}
           {sub && (
             <div className="flex items-center gap-2 mt-5 pt-4 border-t text-sm" style={{ borderColor: "var(--line)" }}>

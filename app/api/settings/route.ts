@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const sets: string[] = [];
-  const args: (string | number)[] = [];
+  const args: (string | number | null)[] = [];
 
   for (const field of ["todo_digest", "news_time", "mood_checkin"] as const) {
     if (field in body) {
@@ -35,6 +35,25 @@ export async function POST(req: NextRequest) {
   for (const field of ["weekly_report", "money_digest"] as const) {
     if (field in body) { sets.push(`${field} = ?`); args.push(body[field] ? 1 : 0); }
   }
+  // প্রোফাইল: বটের update_user এর একই কলাম (ফাঁকা দিলে ডিফল্টে ফেরত)
+  for (const field of ["name", "call_me", "city", "assistant_name"] as const) {
+    if (field in body) {
+      const v = String(body[field] ?? "").replace(/\s+/g, " ").trim().slice(0, field === "city" ? 40 : 30);
+      sets.push(`${field} = ?`); args.push(v || null);
+    }
+  }
+  // নামাজের রিমাইন্ডার: বটের tools/prefs.py র মতো JSON {"prayers": [...], "before": মিনিট}, বন্ধ হলে ''
+  if ("prayer_alerts" in body) {
+    const pa = body.prayer_alerts;
+    if (!pa) { sets.push("prayer_alerts = ''"); }
+    else {
+      const ALL = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+      const picked = ALL.filter((x) => Array.isArray(pa.prayers) && pa.prayers.includes(x));
+      const before = Math.max(0, Math.min(60, Math.round(Number(pa.before) || 0)));
+      sets.push("prayer_alerts = ?"); args.push(JSON.stringify({ prayers: picked.length ? picked : ALL, before }));
+    }
+  }
+  if ("mood_checkin" in body) sets.push("mood_misses = 0");
   if (sets.length === 0) return NextResponse.json({ ok: false, error: "কিছু বদলানো হয়নি" }, { status: 400 });
 
   await exec(`UPDATE hermes_users SET ${sets.join(", ")} WHERE master_id = ?`, [...args, mid]);

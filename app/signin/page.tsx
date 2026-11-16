@@ -181,7 +181,7 @@ export default function SignInPage() {
               Google দিয়ে লগইন
             </button>
             <p className="text-xs text-center" style={{ color: "var(--muted)" }}>
-              AdMCQ, Money বা Pomodoro-র একই অ্যাকাউন্ট। অ্যাকাউন্ট নেই বা পাসওয়ার্ড ভুলে গেছ?{" "}
+              AdMCQ, Money বা Focus-এর একই অ্যাকাউন্ট, Telegram লাগে না। অ্যাকাউন্ট নেই বা পাসওয়ার্ড ভুলে গেছ?{" "}
               <a href={ACCOUNT_SITE} className="font-semibold" style={{ color: "var(--teal)" }}>এখানে করো →</a>
             </p>
           </>
