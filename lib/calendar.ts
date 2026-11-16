@@ -1,7 +1,9 @@
 // রুটিনের মাসের ক্যালেন্ডার (pure): কোন দিনে কোন ব্লক, আর সেটা শেষ/মিস/আজ/সামনে।
 // সপ্তাহ শনিবার থেকে (বাংলাদেশের মতো)। সাপ্তাহিক ব্লক তৈরির আগের দিনগুলোতে দেখাই না।
 
-export type CalBlock = { id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string; created_at?: string | null };
+import { mergeSlots } from "./studySlot.ts";
+
+export type CalBlock = { id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string; created_at?: string | null; study_slot?: number | null; slot_id?: number | null };
 export type CalStatus = "done" | "missed" | "today" | "upcoming" | "past";
 export type CalItem = { id: number; title: string; start_time: string; end_time: string | null; status: CalStatus; dated: boolean; kind: "block" | "task" };
 /** সময় ছাড়া কাজ (বট, পোর্টাল বা Pomodoro থেকে), যেদিনের তারিখ সেদিনে */
@@ -39,9 +41,9 @@ export function buildMonth(month: string, today: string, blocks: CalBlock[], sta
   for (let d = at(from); iso(d) <= to; d.setUTCDate(d.getUTCDate() + 1)) {
     const date = iso(d);
     const code = CODES[d.getUTCDay()];
-    const items = blocks
-      .filter((b) => b.date ? b.date === date
-        : !daysOff.has(date) && (b.days === "daily" || b.days.split(",").includes(code)) && (!b.created_at || b.created_at.slice(0, 10) <= date))
+    const dayBlocks = blocks.filter((b) => b.date ? b.date === date
+      : !daysOff.has(date) && (b.days === "daily" || b.days.split(",").includes(code)) && (!b.created_at || b.created_at.slice(0, 10) <= date));
+    const items = mergeSlots(dayBlocks, date)   // পড়ার সময়ে অধ্যায় থাকলে সাধারণ "পড়া" আলাদা না
       .sort((a, b) => a.start_time.localeCompare(b.start_time))
       .map((b): CalItem => {
         const s = statuses.get(`${b.id}|${date}`);

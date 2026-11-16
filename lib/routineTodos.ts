@@ -5,8 +5,9 @@
 // - ব্লকের নাম/সময়/তারিখ বদলালে খোলা কাজটাও বদলায়, ব্লক মুছলে খোলা কাজ মোছে (শেষ করাগুলো ইতিহাসে থাকে)
 // - কাজ মোছা হয় status 'deleted' দিয়ে, সারি থাকে: (routine_id, routine_date) জোড়া থাকলে আবার বানানো হয় না
 import type { DbOp } from "./pomodoroPlan";
+import { coveredSlots } from "./studySlot.ts";
 
-export type RBlock = { id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string };
+export type RBlock = { id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string; study_slot?: number | null; slot_id?: number | null };
 export type RTodo = { id: number; task: string; due_date: string | null; status: string; routine_id: number; routine_date: string };
 
 const PERIODS: [number, string][] = [[4, "ভোর"], [6, "সকাল"], [12, "দুপুর"], [15, "বিকাল"], [18, "সন্ধ্যা"], [20, "রাত"]];
@@ -21,7 +22,16 @@ export function shortTime(hhmm: string): string {
 }
 
 // 📅 রাখি না: Android এ ওটা "JUL 17" লেখা ক্যালেন্ডার হয়ে দেখায়, তারিখ মনে হয়
-export const routineTitle = (b: RBlock) => `${b.title} · ${shortTime(b.start_time)}`;
+/** পরিকল্পনার দিন "পদার্থবিজ্ঞান: দিন ৩ — ভেক্টর" → "ভেক্টর (পদার্থবিজ্ঞান)": Pomodoro খুললেই আজ কী পড়বে চোখে পড়ে */
+export function taskName(title: string): string {
+  const dash = title.indexOf(" — ");
+  if (dash < 0) return title;
+  const colon = title.indexOf(":");
+  const name = (colon > 0 && colon < dash ? title.slice(0, colon) : title.slice(0, dash)).trim();
+  return `${title.slice(dash + 3).trim()} (${name})`;
+}
+
+export const routineTitle = (b: RBlock) => `${b.date ? taskName(b.title) : b.title} · ${shortTime(b.start_time)}`;
 
 export const appliesOn = (b: RBlock, day: string, dayCode: string) =>
   b.date ? b.date === day : b.days === "daily" || b.days.split(",").includes(dayCode);
@@ -31,6 +41,9 @@ export function planRoutineTodos(input: {
 }): DbOp[] {
   const { masterId, blocks, todos, today, dayCode, nowBd, dayOff = false } = input;
   const ops: DbOp[] = [];
+  // আজ যে পড়ার সময়ে পরিকল্পনার অধ্যায় আছে, তার সাধারণ "পড়া" কাজ হয় না (অধ্যায়গুলোই কাজ)
+  const covered = coveredSlots(blocks, today);
+  const weeklyToday = (b: RBlock) => !dayOff && appliesOn(b, today, dayCode) && !(b.study_slot && covered.has(b.id));
   const byId = new Map(blocks.map((b) => [b.id, b]));
   const taken = new Set(todos.map((t) => `${t.routine_id}|${t.routine_date}`));
   const drop = (t: RTodo) => ops.push({
@@ -54,12 +67,12 @@ export function planRoutineTodos(input: {
       continue;
     }
     // সাপ্তাহিক: আগের দিনের না-করা কাজ, বা আজ আর এই ব্লকের দিন না হলে সরাই
-    if (t.routine_date < today || (t.routine_date === today && (dayOff || !appliesOn(b, today, dayCode)))) { drop(t); continue; }
+    if (t.routine_date < today || (t.routine_date === today && !weeklyToday(b))) { drop(t); continue; }
     if (t.task !== title) ops.push({ sql: "UPDATE hermes_todos SET task = ? WHERE id = ? AND master_id = ?", args: [title, t.id, masterId] });
   }
 
   for (const b of blocks) {
-    const day = b.date ? (b.date >= today ? b.date : null) : !dayOff && appliesOn(b, today, dayCode) ? today : null;   // ছুটির দিনে সাপ্তাহিক না
+    const day = b.date ? (b.date >= today ? b.date : null) : weeklyToday(b) ? today : null;   // ছুটির দিনে সাপ্তাহিক না
     if (!day || taken.has(`${b.id}|${day}`)) continue;
     taken.add(`${b.id}|${day}`);
     ops.push({

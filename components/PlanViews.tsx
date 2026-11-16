@@ -4,11 +4,11 @@
 import { ArrowDown, ArrowUp, BookOpen, CalendarClock, Check, ChevronDown, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { bnDigits, humanTime } from "@/lib/bn";
+import { bnDigits, daysBn, humanTime } from "@/lib/bn";
 import { BOOKS, GROUPS, LEVELS, type Level } from "@/lib/books";
-import { buildExamPlan, groupDays } from "@/lib/examPlan";
+import { buildExamPlan, groupDays, weekdaysOf } from "@/lib/examPlan";
 import { daysLeft, type PlanDay, type PlanSummary } from "@/lib/plans";
-import type { ChapterProgress, RoutineBlock } from "@/lib/data";
+import type { ChapterProgress, RoutineBlock, StudySlot } from "@/lib/data";
 import { BlockForm, Sheet, call } from "./RoutineEditor";
 
 const MONTHS = ["জানু", "ফেব্রু", "মার্চ", "এপ্রি", "মে", "জুন", "জুলাই", "আগ", "সেপ্টে", "অক্টো", "নভে", "ডিসে"];
@@ -78,8 +78,19 @@ function DayRow({ d, i, today, prev, next }: { d: PlanDay; i: number; today: str
   );
 }
 
+/** পড়ার সময়ে যুক্ত পরিকল্পনা: সময় আর বার রুটিনের ব্লক থেকে আসে */
+function SlotNote({ slot }: { slot: StudySlot }) {
+  return (
+    <p className="text-sm rounded-xl px-3 py-2.5" style={{ background: "var(--brand-soft)" }}>
+      📚 রুটিনের পড়ার সময়ে: <b>{slot.title}</b> · <span className="num">{humanTime(slot.start_time)}{slot.end_time ? `–${humanTime(slot.end_time)}` : ""}</span> · {daysBn(slot.days)}
+      <span className="block text-xs muted mt-0.5">সময় বা বার বদলাতে রুটিনের “সপ্তাহ” ট্যাবে ব্লকটা বদলাও, পরিকল্পনাও সাথে সাথে বদলাবে।</span>
+    </p>
+  );
+}
+
 /** বানানো plan বদলানো: নাম, সময়, বাকি অধ্যায় আর শেষের তারিখ। হয়ে যাওয়া দিনগুলো থাকে, বাকিগুলো নতুন করে সাজে */
-function EditPlanButton({ plan, today }: { plan: PlanSummary; today: string }) {
+function EditPlanButton({ plan, today, slots = [] }: { plan: PlanSummary; today: string; slots?: StudySlot[] }) {
+  const slot = slots.find((s) => s.id === plan.slotId);   // পড়ার সময়ে যুক্ত: সময় আর বার রুটিন থেকে
   const [open, setOpen] = useState(false);
   const { pending, error, run } = useApi();
   const first = plan.days[0].block;
@@ -92,7 +103,7 @@ function EditPlanButton({ plan, today }: { plan: PlanSummary; today: string }) {
   const [end, setEnd] = useState(plan.examDate ?? addDays(plan.to, 1));
   const [rev, setRev] = useState(remaining.filter((d) => d.topic.startsWith("রিভিশন")).length);
   const from = remaining[0]?.date ?? today;
-  const preview = useMemo(() => buildExamPlan(name || "পড়া", topics.split(/\n|,|;/), end, from < today ? today : from, rev), [name, topics, end, from, today, rev]);
+  const preview = useMemo(() => buildExamPlan(name || "পড়া", topics.split(/\n|,|;/), end, from < today ? today : from, rev, weekdaysOf(slot?.days)), [name, topics, end, from, today, rev, slot?.days]);
   const count = topics.split(/\n|,|;/).filter((t) => t.trim()).length;
   const openIt = () => { setName(plan.name); setTopics(chapterList().join("\n")); setOpen(true); };
   return (
@@ -101,7 +112,6 @@ function EditPlanButton({ plan, today }: { plan: PlanSummary; today: string }) {
       {open && (
         <Sheet title="পরিকল্পনা বদলাও" onClose={() => setOpen(false)}>
           <div className="space-y-4">
-            <p className="text-sm muted -mt-1">শুধু পড়া নয়, যেকোনো পরিকল্পনাই বানানো যায় — পরীক্ষার প্রস্তুতি, কোডিং, ফিটনেস, কাজের ধাপ, যা খুশি। বটকে বললেও হয়: যেমন “৩০ দিনে ফিজিক্স শেষ করার পরিকল্পনা বানাও”, সে নিজেই সাজিয়ে দেবে।</p>
             <label className="label">পরিকল্পনার নাম
               <input className="field" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
             </label>
@@ -109,13 +119,18 @@ function EditPlanButton({ plan, today }: { plan: PlanSummary; today: string }) {
               <textarea className="field" rows={6} value={topics} onChange={(e) => setTopics(e.target.value)} />
             </label>
             <p className="text-xs muted -mt-2">যে অধ্যায় বাদ দিতে চাও লাইনটা মুছো, নতুন চাইলে লাইন যোগ করো, ক্রম বদলাতে লাইন ওঠানামা করাও। শেষ হয়ে যাওয়া দিনগুলো যেমন আছে তেমনই থাকবে।</p>
+            {slot && <SlotNote slot={slot} />}
             <div className="grid grid-cols-2 gap-3">
-              <label className="label">পড়া শুরু
-                <input className="field" type="time" value={st} onChange={(e) => setSt(e.target.value)} />
-              </label>
-              <label className="label">শেষ
-                <input className="field" type="time" value={et} onChange={(e) => setEt(e.target.value)} />
-              </label>
+              {!slot && (
+                <>
+                  <label className="label">পড়া শুরু
+                    <input className="field" type="time" value={st} onChange={(e) => setSt(e.target.value)} />
+                  </label>
+                  <label className="label">শেষ
+                    <input className="field" type="time" value={et} onChange={(e) => setEt(e.target.value)} />
+                  </label>
+                </>
+              )}
               <label className="label">{plan.examDate ? "পরীক্ষার দিন" : "শেষের পরের দিন"}
                 <input className="field" type="date" value={end} min={addDays(from, 1)} onChange={(e) => setEnd(e.target.value)} />
               </label>
@@ -149,7 +164,7 @@ function EditPlanButton({ plan, today }: { plan: PlanSummary; today: string }) {
 }
 
 /** একটা plan এর বিস্তারিত */
-export function PlanDetail({ plan, today, progress = {} }: { plan: PlanSummary; today: string; progress?: Record<string, ChapterProgress> }) {
+export function PlanDetail({ plan, today, progress = {}, slots = [] }: { plan: PlanSummary; today: string; progress?: Record<string, ChapterProgress>; slots?: StudySlot[] }) {
   const [all, setAll] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const { pending, error, run } = useApi();
@@ -170,7 +185,7 @@ export function PlanDetail({ plan, today, progress = {} }: { plan: PlanSummary; 
           <h3 className="font-bold text-lg leading-tight break-words">{plan.name}</h3>
           <p className="text-sm muted mt-0.5">
             {plan.book ? `${plan.book} · ` : ""}{range(plan.from, plan.to)}
-            {blocks ? ` · ${humanTime(blocks.start_time)}${blocks.end_time ? `–${humanTime(blocks.end_time)}` : ""}` : ""}
+            {blocks ? ` · ${plan.slotId ? "📚 " : ""}${humanTime(blocks.start_time)}${blocks.end_time ? `–${humanTime(blocks.end_time)}` : ""}` : ""}
           </p>
         </div>
         {confirm ? (
@@ -181,7 +196,7 @@ export function PlanDetail({ plan, today, progress = {} }: { plan: PlanSummary; 
           </span>
         ) : (
           <span className="flex items-center shrink-0">
-            {plan.id && !plan.finished && <EditPlanButton plan={plan} today={today} />}
+            {plan.id && !plan.finished && <EditPlanButton plan={plan} today={today} slots={slots} />}
           <button type="button" onClick={() => setConfirm(true)} className="btn-ghost rounded-lg shrink-0" aria-label="পরিকল্পনা মুছো"><Trash2 size={16} /></button>
           </span>
         )}
@@ -250,7 +265,7 @@ export function FinishedPlan({ plan }: { plan: PlanSummary }) {
 }
 
 /** নতুন plan: নাম, বই (অধ্যায় নিজে বসে), শুরু, শেষ (পরীক্ষার তারিখ বা কত দিনে), সময়, রিভিশন → দেখে তারপর রাখা */
-export function NewPlanButton({ today, className = "btn-primary" }: { today: string; className?: string }) {
+export function NewPlanButton({ today, className = "btn-primary", slots = [] }: { today: string; className?: string; slots?: StudySlot[] }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [book, setBook] = useState("");
@@ -265,10 +280,13 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
   const [st, setSt] = useState("21:00");
   const [et, setEt] = useState("23:00");
   const [rev, setRev] = useState(2);
+  // কখন পড়বে: রুটিনের কোনো "পড়ার সময়" (থাকলে সেটাই আগে বাছা), নাকি পরিকল্পনার নিজের সময়
+  const [when, setWhen] = useState<number | "own">(slots[0]?.id ?? "own");
+  const slot = when === "own" ? undefined : slots.find((s) => s.id === when);
   const { pending, error, run } = useApi();
 
   const examDate = mode === "days" ? addDays(start, Math.max(1, daysN)) : exam;
-  const preview = useMemo(() => buildExamPlan(name || "পড়া", topics.split(/\n|,|;/), examDate, start, rev), [name, topics, examDate, start, rev]);
+  const preview = useMemo(() => buildExamPlan(name || "পড়া", topics.split(/\n|,|;/), examDate, start, rev, weekdaysOf(slot?.days)), [name, topics, examDate, start, rev, slot?.days]);
   const pickBook = (id: string) => {
     const prev = BOOKS.find((x) => x.id === book);
     setBook(id);
@@ -277,7 +295,7 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
   };
   const save = () => run({
     action: "create_plan", name, book: BOOKS.find((b) => b.id === book)?.name ?? "", topics, start_date: start, exam_date: examDate, is_exam: mode === "exam",
-    start_time: st, end_time: et, revision_days: rev,
+    start_time: st, end_time: et, revision_days: rev, slot_id: slot?.id ?? null,
   }, () => setOpen(false));
   const count = topics.split(/\n|,|;/).filter((t) => t.trim()).length;
 
@@ -309,6 +327,7 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
               </select>
             </label>
             )}
+            <p className="text-sm muted -mt-1">শুধু পড়া নয়, যেকোনো পরিকল্পনাই বানানো যায় — পরীক্ষার প্রস্তুতি, কোডিং, ফিটনেস, কাজের ধাপ, যা খুশি। বটকে বললেও হয়: যেমন “৩০ দিনে ফিজিক্স শেষ করার পরিকল্পনা বানাও”, সে নিজেই সাজিয়ে দেবে।</p>
             <label className="label">পরিকল্পনার নাম
               <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="যেমন: পদার্থবিজ্ঞান ১ম পত্র, এসএসসি গণিত" maxLength={80} />
             </label>
@@ -335,20 +354,39 @@ export function NewPlanButton({ today, className = "btn-primary" }: { today: str
                   <input className="field" type="date" value={exam} min={addDays(start, 1)} onChange={(e) => setExam(e.target.value)} />
                 </label>
               )}
-              <label className="label">পড়া শুরু
-                <input className="field" type="time" value={st} onChange={(e) => setSt(e.target.value)} />
-              </label>
-              <label className="label">শেষ
-                <input className="field" type="time" value={et} onChange={(e) => setEt(e.target.value)} />
-              </label>
             </div>
+            <div>
+              <span className="label mb-1.5">কখন পড়বে</span>
+              {slots.length > 0 ? (
+                <div className="space-y-1.5">
+                  {slots.map((s) => (
+                    <button key={s.id} type="button" className="toggle w-full !justify-start text-left" aria-pressed={when === s.id} onClick={() => setWhen(s.id)}>
+                      <span>📚 {s.title} · <span className="num">{humanTime(s.start_time)}{s.end_time ? `–${humanTime(s.end_time)}` : ""}</span> · {daysBn(s.days)}</span>
+                    </button>
+                  ))}
+                  <button type="button" className="toggle w-full !justify-start" aria-pressed={when === "own"} onClick={() => setWhen("own")}>⏰ নিজে সময় দাও</button>
+                </div>
+              ) : (
+                <p className="text-xs muted mb-2">টিপস: রুটিনের “সপ্তাহ” ট্যাবে একটা ব্লক খুলে “📚 এটা পড়ার সময়” চালু করলে অধ্যায়গুলো রোজ সেই সময়েই বসবে। আপাতত নিচে সময় দাও।</p>
+              )}
+            </div>
+            {!slot && (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="label">পড়া শুরু
+                  <input className="field" type="time" value={st} onChange={(e) => setSt(e.target.value)} />
+                </label>
+                <label className="label">শেষ
+                  <input className="field" type="time" value={et} onChange={(e) => setEt(e.target.value)} />
+                </label>
+              </div>
+            )}
             <label className="label">শেষে রিভিশনের দিন
               <input className="field num" type="number" min={0} max={14} value={rev} onChange={(e) => setRev(Math.max(0, Number(e.target.value) || 0))} />
             </label>
 
             {preview.ok && count > 0 && (
               <div className="rounded-xl p-3" style={{ background: "var(--surface-2)" }}>
-                <p className="text-xs muted mb-2 num">{bnDigits(preview.studyDays)} দিন পড়া + {bnDigits(preview.revision)} দিন রিভিশন · প্রতিদিন {humanTime(st)}–{humanTime(et)}</p>
+                <p className="text-xs muted mb-2 num">{bnDigits(preview.studyDays)} দিন পড়া + {bnDigits(preview.revision)} দিন রিভিশন · {slot ? `${daysBn(slot.days)} ${humanTime(slot.start_time)}${slot.end_time ? `–${humanTime(slot.end_time)}` : ""}` : `প্রতিদিন ${humanTime(st)}–${humanTime(et)}`}</p>
                 <ul className="space-y-1 max-h-48 overflow-y-auto pr-1 text-sm">
                   {groupDays(preview.days).map((g) => (
                     <li key={g.from} className="flex gap-3"><span className="num muted w-24 shrink-0">{range(g.from, g.to)}</span><span className="font-medium">{g.topic}</span></li>

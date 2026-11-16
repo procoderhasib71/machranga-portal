@@ -8,10 +8,10 @@ export type PlanBlockRow = {
   id: number; date: string; title: string; plan_id: number | null; days: string; start_time: string;
   end_time: string | null; note: string | null; remind: number; focus: number | null;
 };
-export type PlanRow = { id: number; name: string; book: string | null; exam_date: string | null; start_time: string | null; end_time: string | null };
+export type PlanRow = { id: number; name: string; book: string | null; exam_date: string | null; start_time: string | null; end_time: string | null; slot_id?: number | null };
 export type PlanDay = { date: string; status: PlanDayStatus; topic: string; block: PlanBlockRow };
 export type PlanSummary = {
-  id: number | null; key: string; name: string; book: string | null; examDate: string | null;
+  id: number | null; key: string; name: string; book: string | null; examDate: string | null; slotId: number | null;
   from: string; to: string; days: PlanDay[]; done: number; next: string | null; finished: boolean;
 };
 
@@ -44,7 +44,7 @@ export function buildPlans(plans: PlanRow[], blocks: PlanBlockRow[], statuses: M
     });
     const to = dates.at(-1)!;
     out.push({
-      id: plan?.id ?? null, key, name, book: plan?.book ?? null, examDate: plan?.exam_date ?? null,
+      id: plan?.id ?? null, key, name, book: plan?.book ?? null, examDate: plan?.exam_date ?? null, slotId: plan?.slot_id ?? null,
       from: dates[0], to, days, done: days.filter((d) => d.status === "done").length,
       next: days.find((d) => d.status === "today" || d.status === "upcoming")?.date ?? null,
       finished: to < today,

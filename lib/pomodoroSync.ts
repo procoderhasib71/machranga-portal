@@ -30,7 +30,8 @@ function bdNow() {
 export async function syncRoutineTodos(masterId: string): Promise<number> {
   const { today, nowBd, dayCode } = bdNow();
   const [blocks, todos, off] = await Promise.all([
-    query<RBlock>("SELECT id, days, date, start_time, end_time, title FROM hermes_routine_blocks WHERE master_id = ?", [masterId]),
+    query<RBlock>("SELECT b.id, b.days, b.date, b.start_time, b.end_time, b.title, b.study_slot, (SELECT p.slot_id FROM hermes_plans p WHERE p.id = b.plan_id) AS slot_id " +
+      "FROM hermes_routine_blocks b WHERE b.master_id = ?", [masterId]),
     query<RTodo>(
       "SELECT id, task, due_date, status, routine_id, routine_date FROM hermes_todos " +
       "WHERE master_id = ? AND routine_id IS NOT NULL AND (status = 'open' OR routine_date >= ?)", [masterId, today]),

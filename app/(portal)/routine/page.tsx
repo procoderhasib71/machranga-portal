@@ -10,9 +10,10 @@ import { NavProvider, ViewBody, ViewTabs } from "@/components/RoutineNav";
 import PageHeader, { Empty } from "@/components/PageHeader";
 import { DayOff } from "@/components/RoutineEditor";
 import { requireMasterId } from "@/lib/session";
-import { getDaysOff, getPlanBlocks, getRoutine, getRoutineMonth, getTodos, todaysBlocks } from "@/lib/data";
+import { getDaysOff, getPlanBlocks, getRoutine, getRoutineMonth, getStudySlots, getTodos, todaysBlocks } from "@/lib/data";
 import { buildPlans } from "@/lib/plans";
 import { buildToday } from "@/lib/todayPlan";
+import { mergeSlots } from "@/lib/studySlot";
 import { syncForRequest } from "@/lib/pomodoroSync";
 import { buildMonth, monthRange, validMonth } from "@/lib/calendar";
 import { DAY_ORDER, bnDigits, fullDateBn, humanTime, nowBD, nowHHMM, todayBD } from "@/lib/bn";
@@ -32,7 +33,8 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
 
   const tab = view === "month" ? "plans" : view;
   // প্রতিটা ট্যাবে একটাই মূল বোতাম: পরিকল্পনায় "নতুন পরিকল্পনা"; সপ্তাহে প্রতিটা বারেই "যোগ", আজ এ নিচের কাজের বক্স
-  const action = view === "plans" ? <NewPlanButton today={today} className="btn-primary shrink-0 py-2.5" /> : undefined;
+  const slots = view === "plans" ? await getStudySlots(mid) : [];
+  const action = view === "plans" ? <NewPlanButton today={today} slots={slots} className="btn-primary shrink-0 py-2.5" /> : undefined;
 
   return (
     <NavProvider>
@@ -47,7 +49,7 @@ export default async function RoutinePage({ searchParams }: { searchParams: Prom
         <WeekPlanner blocks={weekly.filter((b) => !b.date)} today={today} todayCode={todayCode}
           selected={DAY_ORDER.includes(sp.day as (typeof DAY_ORDER)[number]) ? sp.day! : todayCode} />
       )}
-      {view === "plans" && await PlansView({ mid, today })}
+      {view === "plans" && await PlansView({ mid, today, slots })}
       {view === "month" && await MonthView({ mid, today, m: sp.m, d: sp.d })}
       </ViewBody>
     </div>
@@ -61,8 +63,9 @@ async function TodayView({ mid, all, today, todayCode }: { mid: string; all: Awa
   const tomorrowCode = DAY_ORDER[(DAY_ORDER.indexOf(todayCode as (typeof DAY_ORDER)[number]) + 1) % 7];
   const [todos, offDays] = await Promise.all([getTodos(mid), getDaysOff(mid, today, tomorrow)]);
   const off = offDays.has(today);
-  const now = buildToday(todaysBlocks(all, todayCode, today).filter((b) => b.date || !off), [...todos.open, ...todos.done], today, nowHHMM());
-  const next = todaysBlocks(all, tomorrowCode, tomorrow).filter((b) => b.date || !offDays.has(tomorrow)).sort((a, b) => a.start_time.localeCompare(b.start_time));
+  // পড়ার সময়ে পরিকল্পনার অধ্যায় থাকলে সাধারণ "পড়া" ব্লক বাদ, অধ্যায়গুলো সেই সময়ের নিচে
+  const now = buildToday(mergeSlots(todaysBlocks(all, todayCode, today).filter((b) => b.date || !off), today), [...todos.open, ...todos.done], today, nowHHMM());
+  const next = mergeSlots(todaysBlocks(all, tomorrowCode, tomorrow).filter((b) => b.date || !offDays.has(tomorrow)), tomorrow).sort((a, b) => a.start_time.localeCompare(b.start_time));
   const nextTasks = todos.open.filter((t) => !t.routine_id && t.due_date === tomorrow);
 
   return (
@@ -106,7 +109,7 @@ async function TodayView({ mid, all, today, todayCode }: { mid: string; all: Awa
 }
 
 /** পরিকল্পনা: চালু plan গুলো বিস্তারিত, শেষ হওয়াগুলো নিচে; ক্যালেন্ডারে দেখার বোতাম */
-async function PlansView({ mid, today }: { mid: string; today: string }) {
+async function PlansView({ mid, today, slots }: { mid: string; today: string; slots: Awaited<ReturnType<typeof getStudySlots>> }) {
   const data = await getPlanBlocks(mid);
   const all = buildPlans(data.plans, data.blocks, data.statuses, today);
   const active = all.filter((p) => !p.finished);
@@ -119,7 +122,7 @@ async function PlansView({ mid, today }: { mid: string; today: string }) {
         </div>
       ) : (
         <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-          {active.map((p) => <PlanDetail key={p.key} plan={p} today={today} progress={data.progress} />)}
+          {active.map((p) => <PlanDetail key={p.key} plan={p} today={today} progress={data.progress} slots={slots} />)}
         </ul>
       )}
       <Link href="/routine?view=month" className="btn-outline py-2 text-sm"><CalendarRange size={16} /> ক্যালেন্ডারে দেখো</Link>

@@ -59,15 +59,15 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 }
 
 // focus: null = নিজে থেকে (নাম দেখে), true/false = ইউজার সুইচ বদলেছে
-type FormState = { title: string; kind: "date" | "weekly"; date: string; days: string[]; start_time: string; end_time: string; note: string; remind: boolean; focus: boolean | null };
+type FormState = { title: string; kind: "date" | "weekly"; date: string; days: string[]; start_time: string; end_time: string; note: string; remind: boolean; focus: boolean | null; study_slot: boolean };
 
 function initial(b: RoutineBlock | undefined, today: string, kind: "date" | "weekly", presetDays?: string[]): FormState {
-  if (!b) return { title: "", kind, date: today, days: presetDays?.length ? presetDays : [...DAY_ORDER], start_time: "20:00", end_time: "21:00", note: "", remind: true, focus: null };
+  if (!b) return { title: "", kind, date: today, days: presetDays?.length ? presetDays : [...DAY_ORDER], start_time: "20:00", end_time: "21:00", note: "", remind: true, focus: null, study_slot: false };
   return {
     title: b.title, kind: b.date ? "date" : "weekly", date: b.date ?? today,
     days: b.date ? [...DAY_ORDER] : b.days === "daily" ? [...DAY_ORDER] : b.days.split(","),
     start_time: b.start_time, end_time: b.end_time ?? "", note: b.note ?? "", remind: Boolean(b.remind),
-    focus: b.focus === 1 ? true : b.focus === 0 ? false : null,
+    focus: b.focus === 1 ? true : b.focus === 0 ? false : null, study_slot: Boolean(b.study_slot),
   };
 }
 
@@ -123,6 +123,17 @@ export function BlockForm({ block, today, kind = "date", days, onClose, onDelete
                 <button key={c} type="button" className="toggle" aria-pressed={f.days.includes(c)} onClick={() => toggleDay(c)}>{DAY_BN[c]}</button>
               ))}
             </div>
+          </div>
+        )}
+
+        {f.kind === "weekly" && (
+          <div className="flex items-center justify-between gap-4 rounded-xl px-4 py-3"
+            style={{ background: f.study_slot ? "var(--brand-soft)" : "var(--surface-2)" }}>
+            <span className="text-sm">
+              <span className="font-semibold block">📚 এটা পড়ার সময়</span>
+              <span className="muted text-xs">পড়ার পরিকল্পনার রোজকার অধ্যায় এই সময়েই বসবে; কী পড়বে সেটা “পরিকল্পনা” থেকে ঠিক করো</span>
+            </span>
+            <Switch on={f.study_slot} onChange={(v) => set({ study_slot: v })} label="পড়ার সময়" />
           </div>
         )}
 
@@ -208,6 +219,7 @@ export function EditableBlock({ b, today }: { b: RoutineBlock; today: string }) 
         <p className="text-xs num muted flex items-center gap-1">
           {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
           {isFocus(b) && <span title="Pomodoro তে ফোকাসের কাজ" aria-label="Pomodoro তে ফোকাস">🍅</span>}
+          {b.study_slot ? <span className="chip text-[10px] py-0 font-semibold" title="পড়ার পরিকল্পনার অধ্যায় এই সময়ে বসে">📚 পড়ার সময়</span> : null}
           {!b.remind && <BellOff size={12} aria-label="মনে করানো বন্ধ" />}
           <Pencil size={12} className="ml-auto opacity-40 group-hover:opacity-100" style={{ color: "var(--brand)" }} />
         </p>

@@ -3,7 +3,7 @@
 // নতুন কাজ এখানেই যোগ হয় (কাজের আলাদা পেজ নেই)।
 import { CalendarPlus, Check, Clock, Flame, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { Fragment, useRef, useState, useTransition } from "react";
 import { humanDate, humanTime } from "@/lib/bn";
 import type { TodayBlock, TodayTask } from "@/lib/todayPlan";
 import { celebrate } from "./celebrate";
@@ -105,19 +105,30 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
 
       {blocks.length > 0 && (
         <ol className="space-y-2">
-          {blocks.map((b) => {
+          {blocks.map((b, i) => {
             const key = `b${b.id}`, done = isDone(key, b.done);
             const live = b.live && !done;
+            const g = b.group;
+            const head = g && blocks[i - 1]?.group?.id !== g.id;   // পড়ার সময়ের প্রথম অধ্যায়ের আগে শিরোনাম
             return (
-              <li key={b.id} className={`prow ${party[key] && done ? "done-row" : ""}`} data-live={live} data-done={done}
+              <Fragment key={b.id}>
+              {head && (
+                <li className="flex items-center gap-2 pt-1 text-sm font-semibold" style={{ color: "var(--brand)" }}>
+                  <span aria-hidden>📚</span>{g.title}
+                  <span className="num font-normal muted">· {humanTime(g.start_time)}{g.end_time ? ` – ${humanTime(g.end_time)}` : ""}</span>
+                </li>
+              )}
+              <li className={`prow ${party[key] && done ? "done-row" : ""}`} data-live={live} data-done={done}
                 style={{ opacity: b.past && !b.live && !done ? 0.65 : 1 }}>
                 <Tick done={done} live={b.live} disabled={!b.todoId} celebrate={party[key] ?? 0} label={done ? `${b.title}: আবার খোলো` : `${b.title}: শেষ`}
                   onClick={(e) => b.todoId && toggle(key, b.todoId, b.done, e)} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="ptime num" style={live ? { color: "var(--brand)" } : undefined}>
-                      <Clock size={12} /> {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
-                    </span>
+                    {!g && (
+                      <span className="ptime num" style={live ? { color: "var(--brand)" } : undefined}>
+                        <Clock size={12} /> {humanTime(b.start_time)}{b.end_time ? ` – ${humanTime(b.end_time)}` : ""}
+                      </span>
+                    )}
                     {splitTitle(b.title).plan && <span className="pplan">{splitTitle(b.title).plan}</span>}
                     {live && <span className="chip text-[11px] py-0 font-semibold">● এখন</span>}
                   </div>
@@ -126,6 +137,7 @@ export default function TodayPlan({ blocks, tasks, today, canAdd = false }: { bl
                   </p>
                 </div>
               </li>
+              </Fragment>
             );
           })}
         </ol>

@@ -1,7 +1,10 @@
 // "আজ" এর তালিকা (pure): আজকের রুটিন ব্লক (টিকসহ) আর সময় ছাড়া কাজ (বট, পোর্টাল বা Pomodoro থেকে যোগ করা)।
 // কাজের আলাদা পেজ নেই; সব রুটিনের ভেতরে। রুটিনের ব্লকের নিজের কাজ (routine_id) ব্লকের টিক হিসেবে দেখাই, আলাদা না।
 
-export type PlanBlock = { id: number; start_time: string; end_time: string | null; title: string; note: string | null };
+export type PlanBlock = {
+  id: number; start_time: string; end_time: string | null; title: string; note: string | null;
+  group?: { id: number; title: string; start_time: string; end_time: string | null };   // পড়ার সময়ের নিচে (lib/studySlot.ts)
+};
 export type PlanTodo = { id: number; task: string; due_date: string | null; priority: number; status: string; done_at: string | null; routine_id: number | null };
 
 export type TodayBlock = PlanBlock & { todoId: number | null; done: boolean; live: boolean; past: boolean };

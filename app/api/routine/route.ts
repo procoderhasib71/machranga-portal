@@ -6,7 +6,7 @@ import { DAY_CODES, MAX_BLOCKS, cleanBlock, copyDayPlan, planName } from "@/lib/
 import { syncForRequest } from "@/lib/pomodoroSync";
 import { getMasterId } from "@/lib/session";
 import { TEMPLATES, templateRows } from "@/lib/templates";
-import { buildExamPlan } from "@/lib/examPlan";
+import { buildExamPlan, shiftOnDays, weekdaysOf } from "@/lib/examPlan";
 import { topicOf } from "@/lib/plans";
 
 const bdNow = () => new Date().toLocaleString("sv-SE", { timeZone: "Asia/Dhaka" }).slice(0, 19);
@@ -28,6 +28,11 @@ const refreshPlanDates = (mid: string) => exec(
 
 const fail = (error: string, status = 400) => NextResponse.json({ ok: false, error }, { status });
 
+type Slot = { id: number; days: string; start_time: string; end_time: string | null };
+/** রুটিনের "পড়ার সময়" (সাপ্তাহিক, study_slot = 1) */
+const slotOf = (mid: string, id: number) => one<Slot>(
+  "SELECT id, days, start_time, end_time FROM hermes_routine_blocks WHERE id = ? AND master_id = ? AND date IS NULL AND study_slot = 1", [id, mid]);
+
 async function run(mid: string, body: Record<string, unknown>): Promise<NextResponse | null> {
   const action = String(body.action ?? "");
   const id = Number(body.id ?? 0);
@@ -40,19 +45,28 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
       const n = await one<{ n: number }>("SELECT COUNT(*) AS n FROM hermes_routine_blocks WHERE master_id = ?", [mid]);
       if ((n?.n ?? 0) >= MAX_BLOCKS) return fail(`রুটিনে ${MAX_BLOCKS}টার বেশি ব্লক রাখা যাবে না`);
       const planId = body.plan_id ? Number(body.plan_id) : b.date && b.title.includes(":") ? await ensurePlan(mid, planName(b.title)) : null;
-      await exec("INSERT INTO hermes_routine_blocks (master_id, days, date, start_time, end_time, title, note, remind, focus, plan_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [mid, b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, b.focus, planId, bdNow()]);
+      await exec("INSERT INTO hermes_routine_blocks (master_id, days, date, start_time, end_time, title, note, remind, focus, plan_id, study_slot, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [mid, b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, b.focus, planId, b.study_slot, bdNow()]);
       if (planId) await refreshPlanDates(mid);
       return null;
     }
     if (!id) return fail("কোন ব্লক?");
-    const n = await exec("UPDATE hermes_routine_blocks SET days = ?, date = ?, start_time = ?, end_time = ?, title = ?, note = ?, remind = ?, focus = ? WHERE id = ? AND master_id = ?",
-      [b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, b.focus, id, mid]);
+    const n = await exec("UPDATE hermes_routine_blocks SET days = ?, date = ?, start_time = ?, end_time = ?, title = ?, note = ?, remind = ?, focus = ?, study_slot = ? WHERE id = ? AND master_id = ?",
+      [b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, b.focus, b.study_slot, id, mid]);
     if (!n) return fail("ব্লকটা পাওয়া যায়নি", 404);
+    if (b.study_slot) {
+      // পড়ার সময়ের ঘড়ি বদলালে যুক্ত পরিকল্পনার আজ আর সামনের দিনগুলোও সেই সময়ে
+      await exec("UPDATE hermes_routine_blocks SET start_time = ?, end_time = ? WHERE master_id = ? AND date >= ? AND plan_id IN (SELECT id FROM hermes_plans WHERE master_id = ? AND slot_id = ?)",
+        [b.start_time, b.end_time, mid, todayBD(), mid, id]);
+      await exec("UPDATE hermes_plans SET start_time = ?, end_time = ? WHERE master_id = ? AND slot_id = ?", [b.start_time, b.end_time, mid, id]);
+    } else {
+      await exec("UPDATE hermes_plans SET slot_id = NULL WHERE master_id = ? AND slot_id = ?", [mid, id]);   // আর পড়ার সময় না: পরিকল্পনা নিজের সময়ে চলে
+    }
     if (b.date) await refreshPlanDates(mid);
     return null;
   }
   if (action === "delete" && id) {
+    await exec("UPDATE hermes_plans SET slot_id = NULL WHERE master_id = ? AND slot_id = ?", [mid, id]);   // পরিকল্পনা মোছে না, শেষ সময়টা রাখে
     await exec("DELETE FROM hermes_routine_blocks WHERE id = ? AND master_id = ?", [id, mid]);
     return null;
   }
@@ -71,7 +85,17 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
     const pid = Number(body.plan_id ?? 0);
     const n = Math.max(1, Math.min(Number(body.days) || 1, 30));
     if (!pid) return fail("কোন পরিকল্পনা?");
-    await exec("UPDATE hermes_routine_blocks SET date = date(date, ?) WHERE master_id = ? AND plan_id = ? AND date >= ?", [`+${n} days`, mid, pid, todayBD()]);
+    const p = await one<{ slot_id: number | null }>("SELECT slot_id FROM hermes_plans WHERE id = ? AND master_id = ?", [pid, mid]);
+    const slot = p?.slot_id ? await slotOf(mid, p.slot_id) : null;
+    const wd = weekdaysOf(slot?.days);
+    if (wd) {
+      // পড়ার সময় সপ্তাহের কয়েকটা বারে: পরের পড়ার দিনে সরাই (মাঝের বন্ধের দিনে না)
+      const rows = await query<{ id: number; date: string }>("SELECT id, date FROM hermes_routine_blocks WHERE master_id = ? AND plan_id = ? AND date >= ? ORDER BY date DESC", [mid, pid, todayBD()]);
+      const moved = shiftOnDays(rows.map((r) => r.date), n, wd);
+      for (let i = 0; i < rows.length; i++) await exec("UPDATE hermes_routine_blocks SET date = ? WHERE id = ? AND master_id = ?", [moved[i], rows[i].id, mid]);
+    } else {
+      await exec("UPDATE hermes_routine_blocks SET date = date(date, ?) WHERE master_id = ? AND plan_id = ? AND date >= ?", [`+${n} days`, mid, pid, todayBD()]);
+    }
     await refreshPlanDates(mid);
     return null;
   }
@@ -89,10 +113,11 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
   if (action === "edit_plan") {
     // বানানো plan বদলানো: নাম, সময়, বাকি অধ্যায় আর শেষের তারিখ। যে দিনগুলো হয়ে গেছে সেগুলো থাকে; বাকি দিনগুলো নতুন করে সাজানো।
     const pid = Number(body.plan_id ?? 0);
-    const plan = pid ? await one<{ id: number; name: string }>("SELECT id, name FROM hermes_plans WHERE id = ? AND master_id = ?", [pid, mid]) : null;
+    const plan = pid ? await one<{ id: number; name: string; slot_id: number | null }>("SELECT id, name, slot_id FROM hermes_plans WHERE id = ? AND master_id = ?", [pid, mid]) : null;
     if (!plan) return fail("পরিকল্পনাটা পাওয়া যায়নি", 404);
     const name = String(body.name ?? "").trim().slice(0, 80);
-    const st = String(body.start_time ?? ""), et = String(body.end_time ?? "") || null;
+    const slot = plan.slot_id ? await slotOf(mid, plan.slot_id) : null;   // পড়ার সময়ে যুক্ত হলে সময় আর বার সেখান থেকে
+    const st = slot ? slot.start_time : String(body.start_time ?? ""), et = slot ? slot.end_time : String(body.end_time ?? "") || null;
     if (!name) return fail("পরিকল্পনার নাম দাও");
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(st)) return fail("পড়ার সময় দাও");
     const today = todayBD();
@@ -105,7 +130,7 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
     const drop = rows.filter((r) => !keep.includes(r));
     const topics = String(body.topics ?? "").split(/\n|,|;/);
     const end = String(body.exam_date ?? "");
-    const r = buildExamPlan(name, topics, end, from, Number(body.revision_days ?? 1));
+    const r = buildExamPlan(name, topics, end, from, Number(body.revision_days ?? 1), weekdaysOf(slot?.days));
     if (!r.ok) return fail(r.error);
     const total = await one<{ n: number }>("SELECT COUNT(*) AS n FROM hermes_routine_blocks WHERE master_id = ?", [mid]);
     if ((total?.n ?? 0) - drop.length + r.days.length > MAX_BLOCKS) return fail(`রুটিনে ${MAX_BLOCKS}টার বেশি ব্লক রাখা যাবে না`);
@@ -135,16 +160,19 @@ async function run(mid: string, body: Record<string, unknown>): Promise<NextResp
     const name = String(body.name ?? "").trim().slice(0, 80);
     const topics = String(body.topics ?? "").split(/\n|,|;/);
     const start = String(body.start_date ?? ""), exam = String(body.exam_date ?? "");
-    const st = String(body.start_time ?? ""), et = String(body.end_time ?? "") || null;
+    // পড়ার সময় বাছলে সময় আর বার রুটিনের সেই ব্লক থেকে; নইলে পরিকল্পনার নিজের সময় (আগের মতো)
+    const slot = body.slot_id ? await slotOf(mid, Number(body.slot_id)) : null;
+    if (body.slot_id && !slot) return fail("পড়ার সময়টা পাওয়া যায়নি, রুটিনে আবার দেখো");
+    const st = slot ? slot.start_time : String(body.start_time ?? ""), et = slot ? slot.end_time : String(body.end_time ?? "") || null;
     if (!name) return fail("পরিকল্পনার নাম দাও");
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(st)) return fail("পড়ার সময় দাও");
     if (start < todayBD()) return fail("শুরুর তারিখ পেরিয়ে গেছে");
-    const r = buildExamPlan(name, topics, exam, start, Number(body.revision_days ?? 1));
+    const r = buildExamPlan(name, topics, exam, start, Number(body.revision_days ?? 1), weekdaysOf(slot?.days));
     if (!r.ok) return fail(r.error);
     const total = await one<{ n: number }>("SELECT COUNT(*) AS n FROM hermes_routine_blocks WHERE master_id = ?", [mid]);
     if ((total?.n ?? 0) + r.days.length > MAX_BLOCKS) return fail(`রুটিনে ${MAX_BLOCKS}টার বেশি ব্লক রাখা যাবে না; পুরনো কিছু পরিকল্পনা মুছে নাও`);
-    await exec("INSERT INTO hermes_plans (master_id, name, book, exam_date, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [mid, name, String(body.book ?? "") || null, body.is_exam ? exam : null, st, et, bdNow()]);   // "কত দিনে" হলে পরীক্ষার তারিখ নেই
+    await exec("INSERT INTO hermes_plans (master_id, name, book, exam_date, start_time, end_time, slot_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [mid, name, String(body.book ?? "") || null, body.is_exam ? exam : null, st, et, slot?.id ?? null, bdNow()]);   // "কত দিনে" হলে পরীক্ষার তারিখ নেই
     const pid = (await one<{ id: number }>("SELECT MAX(id) AS id FROM hermes_plans WHERE master_id = ?", [mid]))!.id;
     for (const d of r.days) {
       await exec("INSERT INTO hermes_routine_blocks (master_id, days, date, start_time, end_time, title, note, remind, focus, plan_id, created_at) VALUES (?, 'once', ?, ?, ?, ?, NULL, 1, NULL, ?, ?)",

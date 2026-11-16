@@ -27,12 +27,21 @@ export async function getTodos(mid: string): Promise<{ open: Todo[]; done: Todo[
   return { open, done };
 }
 
-export type RoutineBlock = { id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string; note: string | null; remind: number; focus: number | null };
+export type RoutineBlock = {
+  id: number; days: string; date: string | null; start_time: string; end_time: string | null; title: string; note: string | null; remind: number; focus: number | null;
+  study_slot?: number | null; slot_id?: number | null;   // পড়ার সময় (lib/studySlot.ts)
+};
 
 export async function getRoutine(mid: string): Promise<RoutineBlock[]> {
   return query<RoutineBlock>(
-    "SELECT id, days, date, start_time, end_time, title, note, remind, focus FROM hermes_routine_blocks " +
-    "WHERE master_id = ? AND (date IS NULL OR date >= ?) ORDER BY COALESCE(date, ''), start_time, id", [mid, todayBD()]);
+    "SELECT b.id, b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, b.focus, b.study_slot, (SELECT p.slot_id FROM hermes_plans p WHERE p.id = b.plan_id) AS slot_id FROM hermes_routine_blocks b " +
+    "WHERE b.master_id = ? AND (b.date IS NULL OR b.date >= ?) ORDER BY COALESCE(b.date, ''), b.start_time, b.id", [mid, todayBD()]);
+}
+
+/** রুটিনের "পড়ার সময়" গুলো (সাপ্তাহিক, study_slot = 1) */
+export type StudySlot = { id: number; title: string; days: string; start_time: string; end_time: string | null };
+export async function getStudySlots(mid: string): Promise<StudySlot[]> {
+  return query<StudySlot>("SELECT id, title, days, start_time, end_time FROM hermes_routine_blocks WHERE master_id = ? AND date IS NULL AND study_slot = 1 ORDER BY start_time", [mid]);
 }
 
 export type Reminder = { id: number; task: string; trigger_time: string; repeat_rule: string | null };
@@ -98,8 +107,8 @@ export function isOverdue(due: string | null): boolean {
 export async function getRoutineMonth(mid: string, from: string, to: string) {
   const [blocks, todos] = await Promise.all([
     query<RoutineBlock & { created_at: string | null }>(
-      "SELECT id, days, date, start_time, end_time, title, note, remind, focus, created_at FROM hermes_routine_blocks " +
-      "WHERE master_id = ? AND (date IS NULL OR date BETWEEN ? AND ?)", [mid, from, to]),
+      "SELECT b.id, b.days, b.date, b.start_time, b.end_time, b.title, b.note, b.remind, b.focus, b.created_at, b.study_slot, (SELECT p.slot_id FROM hermes_plans p WHERE p.id = b.plan_id) AS slot_id FROM hermes_routine_blocks b " +
+      "WHERE b.master_id = ? AND (b.date IS NULL OR b.date BETWEEN ? AND ?)", [mid, from, to]),
     query<{ routine_id: number; routine_date: string; status: string }>(
       "SELECT routine_id, routine_date, status FROM hermes_todos WHERE master_id = ? AND routine_id IS NOT NULL AND routine_date BETWEEN ? AND ?",
       [mid, from, to]),
@@ -113,7 +122,7 @@ export async function getRoutineMonth(mid: string, from: string, to: string) {
 /** পরিকল্পনার সারাংশের জন্য: গত ৬০ দিন থেকে সামনের তারিখের ব্লক আর সেসব দিনের কাজের অবস্থা */
 export async function getPlanBlocks(mid: string) {
   const [plans, blocks, todos] = await Promise.all([
-    query<PlanRow>("SELECT id, name, book, exam_date, start_time, end_time FROM hermes_plans WHERE master_id = ? AND (end_date IS NULL OR end_date >= date('now', '-60 days'))", [mid]),
+    query<PlanRow>("SELECT id, name, book, exam_date, start_time, end_time, slot_id FROM hermes_plans WHERE master_id = ? AND (end_date IS NULL OR end_date >= date('now', '-60 days'))", [mid]),
     query<PlanBlockRow>(
       "SELECT id, date, title, plan_id, days, start_time, end_time, note, remind, focus FROM hermes_routine_blocks " +
       "WHERE master_id = ? AND date IS NOT NULL AND date >= date('now', '-60 days')", [mid]),

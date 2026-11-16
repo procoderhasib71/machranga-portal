@@ -3,6 +3,7 @@ import { Bell, CalendarClock, ChevronRight, CircleCheck, HeartPulse, Newspaper, 
 import Link from "next/link";
 import { requireMasterId } from "@/lib/session";
 import { getDaysOff, getHealthLogs, getReminders, getRoutine, getSubscription, getTodos, getUser, todaysBlocks } from "@/lib/data";
+import { mergeSlots } from "@/lib/studySlot";
 import { DAY_ORDER, bnDigits, fullDateBn, greeting, humanDate, humanDateTime, humanTime, nowBD, nowHHMM, todayBD } from "@/lib/bn";
 import { metricBn, valueText } from "@/lib/health";
 import { getNews, timeAgo, type NewsItem } from "@/lib/news";
@@ -41,7 +42,7 @@ export default async function Dashboard() {
   const dayCode = DAY_ORDER[(now.getDay() + 1) % 7];   // JS: রবি=0 → আমাদের ক্রমে
   const off = daysOff.has(today);
   const firstTopic = (user?.news_topics ?? "").split(",")[0]?.trim() ?? "";
-  const blocks = todaysBlocks(routine, dayCode).filter((b) => b.date || !off);   // ছুটির দিনে সাপ্তাহিক বাদ
+  const blocks = mergeSlots(todaysBlocks(routine, dayCode).filter((b) => b.date || !off), today);   // ছুটির দিনে সাপ্তাহিক বাদ; পড়ার সময়ে অধ্যায় থাকলে সেগুলোই
   // রুটিনের ব্লক আর সময় ছাড়া কাজ এক তালিকায় (কাজের আলাদা পেজ নেই)
   const plan = buildToday(blocks, [...todos.open, ...todos.done], today, hhmm);
   const current = plan.current;
