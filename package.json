@@ -17,7 +17,7 @@
     "firebase-admin": "^13.6.0",
     "jose": "^5.9.6",
     "lucide-react": "^1.53.0",
-    "next": "^16.4.3",
+    "next": "^16.4.6",
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
