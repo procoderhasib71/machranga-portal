@@ -16,7 +16,7 @@ export const LINKS = [
 
 const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
-export function Sidebar({ name, look }: { name: string; look?: { avatar: string; from: string; to: string } | null }) {
+export function Sidebar({ name, look }: { name: string; look?: { avatar: string; from: string; to: string; photo?: string } | null }) {
   const path = usePathname();
   const item = (href: string, label: string, Icon: typeof Settings) => {
     const active = isActive(path, href);
@@ -40,7 +40,10 @@ export function Sidebar({ name, look }: { name: string; look?: { avatar: string;
         {item("/settings", "সেটিংস", Settings)}
         <ThemeToggle />
         <div className="flex items-center gap-3 px-2 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
-          {look ? (
+          {look?.photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={look.photo} alt="" className="size-9 shrink-0 rounded-full object-cover" />
+          ) : look ? (
             <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-lg"
               style={{ background: `linear-gradient(135deg, ${look.from}, ${look.to})` }}>{look.avatar}</span>
           ) : (

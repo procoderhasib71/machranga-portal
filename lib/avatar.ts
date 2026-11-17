@@ -4,7 +4,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { adminApp } from "./firebaseAdmin";
 import { one } from "./db";
 
-export type Look = { avatar: string; from: string; to: string };
+export type Look = { avatar: string; from: string; to: string; photo?: string };
 
 const COLORS: Record<string, [string, string]> = {
   indigo: ["#6366f1", "#8b5cf6"], rose: ["#f43f5e", "#fb923c"], emerald: ["#10b981", "#14b8a6"], sky: ["#0ea5e9", "#6366f1"],
@@ -18,6 +18,7 @@ export async function getAvatar(masterId: string): Promise<Look | null> {
     if (!link?.site_uid) return null;
     const snap = await getFirestore(adminApp).doc(`users/${link.site_uid}/profile/avatar`).get();
     const d = snap.data();
+    if (d?.photo && String(d.photo).startsWith("data:image/")) return { avatar: "", from: "", to: "", photo: String(d.photo) };
     if (!d?.avatar) return null;
     const [from, to] = COLORS[String(d.avColor)] ?? COLORS.indigo;
     return { avatar: String(d.avatar), from, to };
