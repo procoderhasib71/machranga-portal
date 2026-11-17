@@ -1,4 +1,4 @@
-// খবর: আগে বটের cron এ জমা করা পত্রিকার খবর (hermes_news_items — প্রথম আলো, ইত্তেফাক, সমকাল, জনকণ্ঠ, ইনকিলাব),
+// খবর: আগে বটের cron এ জমা করা পত্রিকার খবর (hermes_news_items — প্রথম আলো, ইত্তেফাক, সমকাল, ইনকিলাব),
 // না পেলে (বা বিষয় মেলাতে না পারলে) Google News এর বাংলা RSS। ব্যাকআপ hermes_news_cache এ ৩ ঘণ্টা রাখি ('web:' আলাদা key)।
 import { exec, one, query } from "./db";
 import { pickStored } from "./newsPick";
